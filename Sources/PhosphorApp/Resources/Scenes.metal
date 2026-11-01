@@ -22,6 +22,173 @@ float line(float2 p, float2 a, float2 b) {
     float2 d=b-a; float h=clamp(dot(p-a,d)/max(dot(d,d),1e-8),0.,1.);
     return length(p-a-d*h);
 }
+// Small analytic fields bound the work per pixel. Motion uses seconds, not frame counts.
+float hash21(float2 p) { return fract(sin(dot(p,float2(127.1,311.7)))*43758.5453); }
+float2 turn(float2 p, float a) { return float2(cos(a)*p.x-sin(a)*p.y,sin(a)*p.x+cos(a)*p.y); }
+float edgeLight(float d, float width) { return exp(-abs(d)/max(width,.0001)); }
+float mountain(float x, float seed) {
+    float cell=floor(x), f=fract(x);
+    return mix(hash21(float2(cell,seed)),hash21(float2(cell+1,seed)),f);
+}
+// A fixed horizon separates the skyline and mountain silhouettes from the advancing floor.
+float3 outrunScene(float2 p, constant Uniforms &u, device const float *spectrum) {
+    float horizon=.18, y=p.y-horizon, px=2/u.resolution.y;
+    float3 base=ink(0,u.palette), bright=ink(1,u.palette);
+    float3 c=base*(.018+.055*exp(-abs(y)*3));
+    float2 sun=p-float2(.34,-.34);
+    float r=length(sun), radius=.34;
+    c+=base*exp(-r*r*5)*.18;
+    float stripe=smoothstep(.18,.23,fract((sun.y+.4)*19));
+    float disc=1-smoothstep(radius-px,radius+px,r);
+    c+=mix(bright,base,clamp(sun.y*1.6+.45,0.,1.))*disc*stripe*.85;
+    float2 cell=floor((p+4)*55), local=fract((p+4)*55)-.5;
+    float star=edgeLight(length(local),.045)*step(.975,hash21(cell));
+    c+=bright*star*(.2+u.high*.9)*step(p.y,-.14)*( .7+.3*sin(u.time*.8+hash21(cell)*50));
+    for(int layer=0;layer<3;layer++) {
+        float ridge=horizon-.025-float(layer)*.018-mountain(p.x*(5+layer*2)+u.phase*.15,12+layer)*(.24-float(layer)*.045);
+        float mask=smoothstep(ridge-px,ridge+px,p.y);
+        c=mix(c,base*(.013+float(layer)*.012),mask);
+        c+=base*edgeLight(p.y-ridge,.003)*.12;
+    }
+    float column=floor((p.x+3)*19), band=spectrum[min(uint(fract(column*.037)*64),63u)];
+    float height=.018+hash21(float2(column,4))*.07+band*.15;
+    float building=step(.15,fract((p.x+3)*19))*step(horizon-height,p.y)*step(p.y,horizon);
+    c=mix(c,base*.015,building);
+    c+=bright*building*step(.8,fract(p.y*210))*step(.65,fract(p.x*180))*.18;
+    if(y>0) {
+        float z=.25/max(y,.002), x=p.x*z;
+        float dx=abs(fract(x+.5)-.5)/z;
+        float dz=abs(fract(z-u.padding.x*4+.5)-.5)*y*y/.25;
+        float fade=smoothstep(.025,.18,y);
+        float grid=(edgeLight(dx,px*.75)+edgeLight(dz,px*.75))*fade;
+        c=base*.012+mix(base,bright,.3)*grid*(.48+.24*u.bass);
+        c+=base*exp(-y*25)*.12;
+    }
+    return c*u.intensity;
+}
+// Three counter-rotating diamond crowns keep separate bass, mid, and air structures.
+float3 crystalScene(float2 p, constant Uniforms &u, device const float *spectrum) {
+    float r=length(p), a=atan2(p.y,p.x), px=2/u.resolution.y;
+    float3 c=ink(0,u.palette)*exp(-r*r*4)*.025;
+    for(int layer=0;layer<3;layer++) {
+        float n=12+layer*4, spin=u.time*(layer==1 ? -.035:.025)+u.phase*.15;
+        float sector=(a+spin)*n/6.283185;
+        float f=fract(sector+.5)-.5;
+        uint band=uint(layer*20)+min(uint(abs(f)*38),19u);
+        float energy=spectrum[min(band,63u)];
+        float response=layer==0 ? u.high : (layer==1 ? u.mid:u.bass);
+        float center=.25+float(layer)*.235;
+        float halfLength=.105+response*.045+energy*.065;
+        float width=.27+float(layer)*.025;
+        float diamond=abs(r-center)/halfLength+abs(f)/width;
+        float face=1-smoothstep(1.,1.+px*10,diamond);
+        float seam=edgeLight(diamond-1,px*7);
+        float spine=edgeLight(f,px*1.2)*face;
+        float facet=(f>0 ? .12:.3)+(r>center ? .0:.14);
+        float3 tint=ink(clamp(float(layer)*.25+f+.35,0.,1.),u.palette);
+        c+=tint*(face*facet*1.6+seam*.55+spine*.35);
+        c+=ink(1,u.palette)*face*u.transient*pow(max(0.,cos(a*3+u.time*.6+layer)),16)*.65;
+        float polygon=r*cos(f*6.283185/n);
+        c+=tint*edgeLight(r-(center+.025*cos((a+spin)*n*2)),px)*.07;
+        c+=tint*edgeLight(polygon-(center-halfLength-.025),px)*.16;
+    }
+    float hex=length(p)*cos(fmod(a+9.424778,1.047198)-.523599);
+    c+=ink(1,u.palette)*(edgeLight(hex-.103,px)*.6+exp(-r*25)*(.15+.25*u.bass));
+    return c*u.intensity;
+}
+// Sample nearby polar cells instead of testing a global particle list at every pixel.
+float3 galaxyScene(float2 p, constant Uniforms &u) {
+    float2 q=turn(p,-.28); q.y/=.69;
+    float r=length(q), a=atan2(q.y,q.x), px=2/u.resolution.y;
+    float theta=(a-3.2*log(r+.14)-u.time*.055-u.phase*.1)/6.283185;
+    float arm=.5+.5*cos(theta*25.132741);
+    float disc=exp(-r*2.6)*smoothstep(.035,.2,r)*(1-smoothstep(1.,1.45,r));
+    float3 c=ink(.15,u.palette)*pow(arm,8)*disc*.36;
+    for(int layer=0;layer<2;layer++) {
+        float radial=48+layer*19, angular=96;
+        float2 grid=float2(r*radial,fract(theta)*angular);
+        float2 origin=floor(grid);
+        for(int x=-1;x<=1;x++) for(int y=-1;y<=1;y++) {
+            float2 id=origin+float2(x,y);
+            float2 wrapped=float2(id.x,fmod(id.y+angular,angular));
+            float h=hash21(wrapped+float(layer)*73);
+            float2 offset=float2(hash21(wrapped+13),hash21(wrapped+31));
+            float2 delta=id+offset-grid;
+            float rr=max((id.x+offset.x)/radial,.015);
+            float da=delta.y/angular*6.283185;
+            // Account for the spiral shear in the local radial direction.
+            float2 distance=float2(delta.x/radial,(da+3.2/(rr+.14)*delta.x/radial)*rr);
+            float shape=exp(-dot(distance,distance)/(max(px,.0015)*max(px,.0015)*(.4+h)*1.6));
+            float trail=exp(-abs(distance.x)*450-abs(distance.y)*110)*.12*u.persistence;
+            float armPhase=(id.y+offset.y)/angular*25.132741;
+            float density=pow(.5+.5*cos(armPhase),9);
+            uint armID=uint(floor(fract((id.y+offset.y)/angular)*4));
+            float band=armID==0 ? u.bass : (armID==1 ? u.mid : (armID==2 ? u.high:(u.mid+u.high)*.5));
+            float sparkle=pow(max(0.,sin(h*70+u.time*.7)),18)*u.transient;
+            c+=ink(h,u.palette)*(shape+trail)*density*disc*(.9+band*2.2+sparkle)*(.5+float(layer)*.4);
+        }
+    }
+    c+=ink(1,u.palette)*exp(-r*r/(.004+u.bass*.002))*(1.2+u.bass*.4);
+    c+=ink(.6,u.palette)*exp(-r*8)*.15;
+    return c*u.intensity;
+}
+// Seeded 5 by 7 numerals and runes retain clear stems, counters, and crossbars.
+float glyph(float2 cell, float seed) {
+    int x=int(floor(cell.x*7))-1, y=int(floor(cell.y*9))-1;
+    if(x<0 || x>4 || y<0 || y>6) return 0;
+    const uint2 symbols[16]={uint2(0xace2e,0x3a39),uint2(0x21184,0x3884),uint2(0x3062e,0x7e08),uint2(0x2083f,0x2108),uint2(0xfc62e,0x4631),uint2(0xf421f,0x7e10),uint2(0xfc631,0x4631),uint2(0xc5251,0x4654),uint2(0x9d731,0x4631),uint2(0x22a31,0x1084),uint2(0x713e4,0x1095),uint2(0xf905f,0x4104),uint2(0x97e52,0x2082),uint2(0x27c8e,0x12b5),uint2(0x7085e,0x3a52),uint2(0x27dd5,0x455f)};
+    uint2 bits=symbols[min(uint(seed*16),15u)];
+    uint row=y<4 ? bits.x>>uint(y*5) : bits.y>>uint((y-4)*5);
+    return float((row>>uint(4-x))&1u);
+}
+// Two spaced depth layers have stable stream speeds and bright moving heads.
+float3 rainScene(float2 p, constant Uniforms &u, device const float *spectrum) {
+    float3 c=0;
+    for(int layer=0;layer<2;layer++) {
+        float size=layer==0 ? .044:.069;
+        float2 g=(p+float2(7,3))/float2(size,size*1.65);
+        float col=floor(g.x), row=floor(g.y);
+        float seed=hash21(float2(col,layer+17));
+        float speed=2.5+seed*5, period=45+seed*30;
+        float head=u.time*speed+seed*period+u.phase*3;
+        float age=fmod(head-row+period*100,period);
+        float length=9+seed*18;
+        float band=spectrum[min(uint(fract(col*.023+float(layer)*.2)*64),63u)];
+        float active=step(seed, .58+band*.25+u.transient*.12);
+        float fade=pow(max(0.,1-age/length),1.7)*active;
+        float tick=floor(u.time*2+seed*13);
+        float symbol=hash21(float2(col*7+row,tick));
+        float mask=glyph(fract(g),symbol);
+        float headLight=1-smoothstep(.0,1.5,age);
+        float sparkle=step(.985,hash21(float2(row+tick,col)))*u.high;
+        float3 tint=mix(ink(.1,u.palette),ink(1,u.palette),headLight);
+        c+=tint*mask*fade*(.48+band*.8+headLight*1.3+sparkle)*(layer==0 ? .45:1.);
+    }
+    return c*u.intensity;
+}
+// Five soft sources make a continuous field. Contours show flow without feedback recursion.
+float3 plasmaScene(float2 p, constant Uniforms &u) {
+    float t=u.time*.13+u.phase, field=0;
+    float2 warp=p+.065*float2(sin(p.y*3+t),cos(p.x*2-t*.7))*(.5+u.mid*.5);
+    for(int i=0;i<5;i++) {
+        float k=float(i), phase=k*1.256637;
+        float2 center=float2(sin(t*(.42+k*.07)+phase)*1.05,cos(t*(.51+k*.04)+phase)*.68);
+        float2 d=warp-center;
+        float radius=.38+k*.055+u.bass*.04;
+        field+=exp(-dot(d,d)/radius)*(.62+k*.045);
+    }
+    float contours=field*7+.18*sin(p.x*3+p.y*2+t);
+    float ridge=pow(.5+.5*cos(contours*6.283185),18);
+    float fill=smoothstep(.2,1.4,field);
+    float colorPosition=.5+.5*sin(field*3.8-t*.2);
+    float3 deep=ink(0,u.palette)*float3(.15,.12,.2);
+    float3 c=mix(deep,ink(colorPosition,u.palette)*.72,fill);
+    c+=ink(1-colorPosition,u.palette)*ridge*fill*(.3+u.high*.2);
+    float accent=exp(-pow(field-1.05,2)*90)*u.transient*.35;
+    c+=ink(1,u.palette)*accent;
+    return c*u.intensity;
+}
+
 fragment float4 sceneFragment(VertexOut in [[stage_in]], constant Uniforms &u [[buffer(0)]],
     device const float2 *wave [[buffer(1)]], device const float *spectrum [[buffer(2)]],
     texture2d<float> previous [[texture(0)]]) {
@@ -55,7 +222,7 @@ fragment float4 sceneFragment(VertexOut in [[stage_in]], constant Uniforms &u [[
         float filaments=pow(.5+.5*sin(angle*23+r*21-t),16)*exp(-abs(r-.9)*10)*u.high;
         float flare=exp(-r*r*9)*u.transient;
         color=trail+ink(.5+.5*sin(angle+t*.15),u.palette)*(ribbon+filaments*.7+flare*.4)*u.intensity*min(u.dt*60,2.);
-    } else {
+    } else if(u.scene==2) {
         float2 center=float2(sin(t*.19+phase)*.16,cos(t*.13+phase)*.12);
         float2 q=p-center; float r=length(q), a=atan2(q.y,q.x)+.10*sin(t*.17);
         float light=0;
@@ -70,6 +237,15 @@ fragment float4 sceneFragment(VertexOut in [[stage_in]], constant Uniforms &u [[
         color=ink(clamp(r*.55,0.,1.),u.palette)*(light+spokes)*u.intensity;
         color+=ink(1,u.palette)*exp(-r*30)*(.3+u.bass);
     }
+    else if(u.scene==3) color=outrunScene(p,u,spectrum);
+    else if(u.scene==4) color=crystalScene(p/min(1.,u.resolution.x/u.resolution.y),u,spectrum);
+    else if(u.scene==5) {
+        color=galaxyScene(p/min(1.,u.resolution.x/u.resolution.y),u);
+        float decay=exp(-u.dt/(.025+u.persistence*.13));
+        color=max(color,previous.sample(s,uv).rgb*decay);
+    }
+    else if(u.scene==6) color=rainScene(p,u,spectrum);
+    else if(u.scene==7) color=plasmaScene(p,u);
     color*=(1-smoothstep(.3,1.8,length((uv-.5)*1.3)));
     return float4(min(color,float3(8)),1);
 }

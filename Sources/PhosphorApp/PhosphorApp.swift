@@ -8,6 +8,11 @@ struct PhosphorApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject private var desk = DeskModel()
     init() {
+        if let index = ProcessInfo.processInfo.arguments.firstIndex(of: "--validate-scenes"),
+           ProcessInfo.processInfo.arguments.count > index+1 {
+            do { try SceneValidation.run(directory: URL(fileURLWithPath: ProcessInfo.processInfo.arguments[index+1])); exit(0) }
+            catch { print("Scene validation failed: \(error)"); exit(1) }
+        }
         if ProcessInfo.processInfo.arguments.contains("--validate-resources") {
             do {
                 _ = try SceneRenderer(audio: AudioEngine()) { (SceneSettings(), .balanced, 0) }
@@ -50,6 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @Published var notice = ""
     @Published var tick = 0
     let audio = AudioEngine()
+    let previewMode = ProcessInfo.processInfo.arguments.contains("--scene-gallery") || Bundle.main.object(forInfoDictionaryKey: "PhosphorSyntheticGallery") as? Bool == true
     var windows: [UUID: OutputWindow] = [:]
     private var timer: Timer?
     private var observer: NSObjectProtocol?
@@ -62,6 +68,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if outputs.isEmpty {
             outputs = [OutputState(name: "Output 1", scene: .scope, palette: .mint), OutputState(name: "Output 2", scene: .bloom, palette: .ultraviolet)]
         }
+        if previewMode {
+            outputs = Scene.allCases.filter { $0.shaderID >= 3 }.map {
+                OutputState(name: $0.rawValue + " · SYNTHETIC",scene: $0,palette: $0.suggestedPalette)
+            }
+        }
         screens = NSScreen.screens
         observer = NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.refreshScreens() }
@@ -71,11 +82,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func startup() {
         guard !started else { return }; started = true
         let args = ProcessInfo.processInfo.arguments
+        if previewMode { for output in outputs { open(output.id) } }
         if args.contains("--stage-outputs") { for output in outputs.prefix(2) { open(output.id) } }
         if args.contains("--capture-music") { startCapture() }
     }
     func refresh() {
-        let value = audio.snapshot(); features = value.0; status = value.1; sampleRate = value.2; dropped = value.3; tick += 1
+        let value = audio.snapshot(); features = previewMode ? SceneValidation.features(at: CACurrentMediaTime()-SceneRenderer.epoch) : value.0; status = previewMode ? "SYNTHETIC SCENE PREVIEW · no captured audio" : value.1; sampleRate = value.2; dropped = value.3; tick += 1
         if ProcessInfo.processInfo.arguments.contains("--diagnostics") {
             diagnosticCount += 1
             if diagnosticCount % 5 == 0 {
@@ -86,6 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     func startCapture() {
+        guard !previewMode else { return }
         starting = true; notice = ""
         audio.start(musicOnly: musicOnly) { [weak self] error in
             self?.starting = false; self?.running = error == nil
@@ -113,6 +126,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         save()
     }
     func save() {
+        guard !previewMode else { return }
         do { UserDefaults.standard.set(try JSONEncoder().encode(SavedDesk(outputs: outputs)), forKey: preferencesKey) }
         catch { notice = "Could not save the desk: \(error.localizedDescription)" }
     }
@@ -121,6 +135,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let output = outputs.first(where: { $0.id == id }) else { return }
         do {
             let renderer = try SceneRenderer(audio: audio) { [weak self] in self?.settings(id) ?? (SceneSettings(), .balanced, 0) }
+            if previewMode { renderer.previewFeatures = SceneValidation.features(at:) }
             renderer.mirrorSource = { [weak self] in
                 guard let self, self.outputs.first(where: {$0.id == id})?.role == .mirrored,
                       let leader = self.outputs.first, leader.id != id else { return nil }
@@ -211,7 +226,7 @@ struct DeskView: View {
                             .labelsHidden().frame(width: 200).disabled(desk.running || desk.starting)
                         Button(desk.running ? "Stop capture" : desk.starting ? "Starting…" : "Start capture") {
                             if desk.running { desk.stopCapture() } else { desk.startCapture() }
-                        }.disabled(desk.starting).buttonStyle(.borderedProminent).tint(.mint)
+                        }.disabled(desk.starting || desk.previewMode).buttonStyle(.borderedProminent).tint(.mint)
                     }
                     Text(desk.status).font(.system(.caption, design: .monospaced)).foregroundStyle(desk.features.peak > 0.00001 ? .mint : .secondary).textSelection(.enabled)
                     HStack(spacing: 18) {
