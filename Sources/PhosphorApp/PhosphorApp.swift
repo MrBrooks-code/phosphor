@@ -7,6 +7,15 @@ import PhosphorCore
 struct PhosphorApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject private var desk = DeskModel()
+    init() {
+        if ProcessInfo.processInfo.arguments.contains("--validate-resources") {
+            do {
+                _ = try SceneRenderer(audio: AudioEngine()) { (SceneSettings(), .balanced, 0) }
+                print("Packaged shader resources and Metal pipelines validated.")
+                exit(0)
+            } catch { print("Resource validation failed: \(error)"); exit(1) }
+        }
+    }
     var body: some SwiftUI.Scene {
         WindowGroup("Phosphor · Control desk", id: "desk") {
             DeskView(desk: desk).preferredColorScheme(.dark)
@@ -34,7 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @Published var status = "Capture stopped · no audio source"
     @Published var running = false
     @Published var starting = false
-    @Published var musicOnly = true
+    @Published var musicOnly: Bool = { if #available(macOS 26, *) { return true }; return false }()
     @Published var features = AudioFeatures()
     @Published var sampleRate: Double = 48000
     @Published var dropped: UInt64 = 0
@@ -100,7 +109,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let index = outputs.firstIndex(where: { $0.id == output.id }) else { return }
         let old = outputs[index]; outputs[index] = output
         if output.screenID != old.screenID { reassign(output.id) }
-        if output.role == .mirrored, let leader = outputs.first, leader.id != output.id { open(leader.id) }
+        if output.role == .mirrored, let leader = outputs.first, leader.id != output.id, windows[leader.id] == nil { open(leader.id) }
         save()
     }
     func save() {
@@ -124,7 +133,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if presentationActivity == nil {
                 presentationActivity = ProcessInfo.processInfo.beginActivity(options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical], reason: "Live audio-reactive presentation")
             }
-            if output.role == .mirrored, let leader = outputs.first, leader.id != id { open(leader.id) }
+            if output.role == .mirrored, let leader = outputs.first, leader.id != id, windows[leader.id] == nil { open(leader.id) }
             reassign(id); window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true); tick += 1
         } catch { notice = "Metal output could not start: \(error.localizedDescription)" }
     }
@@ -173,6 +182,7 @@ final class OutputWindow: NSWindow, NSWindowDelegate {
         contentView = PresentationView(renderer: renderer)
     }
     func windowWillClose(_ notification: Notification) { (contentView as? PresentationView)?.stop(); onClose?() }
+    func windowDidChangeScreen(_ notification: Notification) { (contentView as? PresentationView)?.refreshDisplayLink() }
     func windowDidExitFullScreen(_ notification: Notification) { titleVisibility = .visible; onExitFullscreen?() }
     func windowWillEnterFullScreen(_ notification: Notification) { titleVisibility = .hidden }
     override func keyDown(with event: NSEvent) {
@@ -253,6 +263,11 @@ struct OutputCard: View {
                 Button("Fullscreen") { desk.fullscreen(output.id) }
                 Button("Close") { desk.close(output.id) }.disabled(desk.windows[output.id] == nil)
                 Button { desk.remove(output.id) } label: { Image(systemName: "trash") }.help("Remove output configuration")
+            }
+            if output.role != .independent && !isLeader, let leader = desk.outputs.first {
+                let resolved = output.resolved(leader: leader)
+                Text("\(output.role == .mirrored ? "Mirroring" : "Coordinated with") \(leader.name) · \(resolved.scene.rawValue) · \(resolved.palette.rawValue)\(output.role == .mirrored ? " · " + leader.quality.rawValue : "")")
+                    .font(.caption).foregroundStyle(.mint)
             }
             HStack {
                 Picker("Scene",selection: binding(\.settings.scene)) { ForEach(Scene.allCases,id: \.self) { Text($0.rawValue).tag($0) } }.disabled(output.role == .mirrored && !isLeader)

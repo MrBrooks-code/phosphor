@@ -39,7 +39,7 @@ fragment float4 sceneFragment(VertexOut in [[stage_in]], constant Uniforms &u [[
         if(uv.y>.89 && uv.y<.97 && fract(uv.x*64)>.13) {
             uint band=min(uint(uv.x*64),63u);
             float h=spectrum[band]*.075;
-            if(h>.0001) color+=ink(float(band)/64,u.palette)*smoothstep(px,0.,abs(uv.y-.96+h*.5)-h*.5)*.5*u.intensity;
+            if(h>.0001) color+=ink(float(band)/64,u.palette)*(1-smoothstep(0.,px,abs(uv.y-.96+h*.5)-h*.5))*.5*u.intensity;
         }
     } else if(u.scene==1) {
         float r=length(p), angle=atan2(p.y,p.x);
@@ -70,7 +70,7 @@ fragment float4 sceneFragment(VertexOut in [[stage_in]], constant Uniforms &u [[
         color=ink(clamp(r*.55,0.,1.),u.palette)*(light+spokes)*u.intensity;
         color+=ink(1,u.palette)*exp(-r*30)*(.3+u.bass);
     }
-    color*=smoothstep(1.8,.3,length((uv-.5)*1.3));
+    color*=(1-smoothstep(.3,1.8,length((uv-.5)*1.3)));
     return float4(min(color,float3(8)),1);
 }
 fragment float4 presentFragment(VertexOut in [[stage_in]], texture2d<float> image [[texture(0)]]) {

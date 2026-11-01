@@ -5,8 +5,11 @@ import PhosphorCore
 
 struct CaptureFailure: LocalizedError {
     let operation: String
-    let status: OSStatus
-    var errorDescription: String? { "\(operation): Core Audio error \(status). Check System Settings → Privacy & Security → Screen & System Audio Recording, then retry capture." }
+    let status: OSStatus?
+    var errorDescription: String? {
+        guard let status else { return operation }
+        return "\(operation): Core Audio error \(status). Check System Settings → Privacy & Security → Screen & System Audio Recording, then retry capture."
+    }
 }
 
 // Own the private tap and aggregate. Never change the system output or mute playback.
@@ -25,7 +28,7 @@ final class AudioCapture {
         do {
             let description: CATapDescription
             if musicOnly {
-                guard #available(macOS 26, *) else { throw CaptureFailure(operation: "Music-only mode needs macOS 26", status: -1) }
+                guard #available(macOS 26, *) else { throw CaptureFailure(operation: "Music-only mode needs macOS 26", status: nil) }
                 description = CATapDescription(stereoMixdownOfProcesses: [])
                 description.bundleIDs = ["com.apple.Music"]
                 description.isProcessRestoreEnabled = true
@@ -38,20 +41,20 @@ final class AudioCapture {
             try check(AudioObjectGetPropertyData(tap, &address, 0, nil, &size, &format), "Read tap format")
             guard format.mFormatID == kAudioFormatLinearPCM, format.mBitsPerChannel == 32,
                   format.mFormatFlags & kAudioFormatFlagIsFloat != 0, format.mChannelsPerFrame == 2 else {
-                throw CaptureFailure(operation: "Unsupported tap format (requires Float32 stereo)", status: -1)
+                throw CaptureFailure(operation: "Unsupported tap format (requires Float32 stereo)", status: nil)
             }
             let composition: [String: Any] = [
                 kAudioAggregateDeviceNameKey: "Phosphor private capture",
                 kAudioAggregateDeviceUIDKey: "com.mrbrooks.phosphor.capture.\(UUID())",
                 kAudioAggregateDeviceIsPrivateKey: true,
-                kAudioAggregateDeviceTapAutoStartKey: true,
+                kAudioAggregateDeviceTapAutoStartKey: false,
                 kAudioAggregateDeviceTapListKey: [[kAudioSubTapUIDKey: description.uuid.uuidString, kAudioSubTapDriftCompensationKey: true]]
             ]
             try check(AudioHardwareCreateAggregateDevice(composition as CFDictionary, &aggregate), "Create private aggregate")
             address.mSelector = kAudioDevicePropertyNominalSampleRate
             var rate: Double = format.mSampleRate; size = UInt32(MemoryLayout<Double>.size)
             try check(AudioObjectGetPropertyData(aggregate, &address, 0, nil, &size, &rate), "Read capture sample rate")
-            guard rate > 0 else { throw CaptureFailure(operation: "Invalid capture rate", status: -1) }
+            guard rate > 0 else { throw CaptureFailure(operation: "Invalid capture rate", status: nil) }
             sampleRate = rate; ingress_set_rate(queue, rate)
             try check(AudioDeviceCreateIOProcID(aggregate, ingress_callback, UnsafeMutableRawPointer(queue), &proc), "Create capture callback")
             try check(AudioDeviceStart(aggregate, proc), "Start capture")
@@ -83,6 +86,7 @@ final class AudioEngine: @unchecked Sendable {
     func start(musicOnly: Bool, completion: @escaping (String?) -> Void) {
         worker.async { [self] in
             stopWorker()
+            lock.lock(); message = "Starting tap · check the macOS permission prompt"; lock.unlock()
             do {
                 try capture.start(musicOnly: musicOnly)
                 let analyzer = AudioAnalyzer()

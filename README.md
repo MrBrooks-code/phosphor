@@ -10,7 +10,7 @@ Phosphor is a native macOS music visualizer built with SwiftUI, AppKit, Core Aud
 
 ## Build and run
 
-Use a Mac with Metal and Swift 6 Command Line Tools or Xcode. System-mix capture requires macOS 14.2 or later; Apple Music-only selection uses the bundle-ID tap API in macOS 26 or later. The inspected build machine runs macOS 27.0.1 on Apple M3 Ultra.
+Use a Mac with Metal and Swift 6 Command Line Tools or Xcode with the macOS 26 SDK or later. System-mix capture requires macOS 14.2 or later; Apple Music-only selection uses the bundle-ID tap API in macOS 26 or later. The inspected build machine runs macOS 27.0.1 on Apple M3 Ultra.
 
 ```sh
 scripts/build.sh
@@ -35,7 +35,7 @@ The tap is private and unmuted. It does not change your default output, install 
 
 Each output card has a scene, palette, intensity, persistence, display, quality and role. **Open** creates its window; **Fullscreen** presents without controls; **Escape** leaves fullscreen. **Close** keeps the saved configuration, while the trash button removes it. Use **Window → Control desk** (⇧⌘D) to return to the controls. A display change while fullscreen is saved and applied when fullscreen ends. Unavailable screens fall back to the operator display.
 
-The first output is the leader. **Independent** outputs keep their own scene state and settings. **Mirrored** outputs sample the leader's rendered image, including feedback; their source render quality comes from the leader. Closing the leader also closes its mirrors. **Coordinated** outputs share the leader's palette/intensity plus common audio and clock, while keeping their own scene, phase, persistence and quality. Each display presents on its own refresh clock; this is not hardware frame lock.
+The first output is the leader. **Independent** outputs keep their own scene state and settings. **Mirrored** outputs sample the leader's rendered image, including feedback; their source render quality comes from the leader. Aspect ratio is preserved with black bars when needed. Closing the leader also closes its mirrors. **Coordinated** outputs share the leader's palette/intensity plus common audio and clock, while keeping their own scene, phase, persistence and quality. Each display presents on its own refresh clock; this is not hardware frame lock.
 
 The default quality caps the longest rendered dimension at 1920 pixels. Half resolution and native pixels are also available. Resizing or changing render resolution clears feedback textures; scene settings survive. Desk parameters use a validated, versioned local preferences document. Window placement/fullscreen state and audio permission are not saved as scene parameters. Capture never starts automatically during a normal launch.
 
@@ -45,6 +45,12 @@ For an explicit diagnostic launch with two configured windows and Music capture:
 build/Phosphor.app/Contents/MacOS/Phosphor --stage-outputs --capture-music --diagnostics
 ```
 
-This prints numeric audio features and renderer timing, not raw samples. It is an opt-in diagnostic command; there is no hidden demo source.
+Quit any existing Phosphor instance before this diagnostic launch. This prints numeric audio features and renderer timing, not raw samples. It is an opt-in diagnostic command; there is no hidden demo source.
 
 Read [implementation notes](docs/IMPLEMENTATION.md) to add a shader scene or understand capture, timing and saved state. The Windows [Llamascope reference](https://github.com/MrBrooks-code/llamascope) is a separate repository and remains unchanged. Physical vintage display conversion has not been tested.
+
+To verify a copied app's bundled shader and all Metal pipelines without starting capture or opening output windows:
+
+```sh
+build/Phosphor.app/Contents/MacOS/Phosphor --validate-resources
+```
