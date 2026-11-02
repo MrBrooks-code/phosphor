@@ -31,9 +31,10 @@ For the narrow automated checks:
 
 ```sh
 swift run CoreChecks
+swift run CaptureChecks
 ```
 
-These run without XCTest, which is absent from the inspected Command Line Tools installation. They test queue overflow/wrap, timestamped stereo history, anti-phase spectral energy, frequency separation, silence release, output independence/roles, saved-state validation, and resolution caps. A build or these synthetic checks does not prove Apple Music capture or physical display behavior; see [validation notes](docs/VALIDATION.md).
+The capture checks inject native failures and verify resource ownership, cleanup order, and recovery from incomplete cleanup. These run without XCTest, which is absent from the inspected Command Line Tools installation. They test queue overflow/wrap, timestamped stereo history, anti-phase spectral energy, frequency separation, silence release, output independence/roles, saved-state validation, and resolution caps. A build or these synthetic checks does not prove Apple Music capture or physical display behavior; see [validation notes](docs/VALIDATION.md).
 
 ## Use the control desk
 
@@ -53,7 +54,7 @@ For an explicit diagnostic launch with two configured windows and Music capture:
 build/Phosphor.app/Contents/MacOS/Phosphor --stage-outputs --capture-music --diagnostics
 ```
 
-Quit any existing Phosphor instance before this diagnostic launch. This prints numeric audio features and renderer timing, not raw samples. It is an opt-in diagnostic command; normal launches use captured audio only. The explicit scene gallery below uses labeled synthetic features.
+Quit any existing Phosphor instance before this diagnostic launch; direct executable launches can create duplicates. Quit waits for capture teardown before exiting. This prints native capture operation durations, setup/first-frame/first-signal times, numeric audio features and renderer timing, not raw samples. It is an opt-in diagnostic command; normal launches use captured audio only. The explicit scene gallery below uses labeled synthetic features.
 
 Read [implementation notes](docs/IMPLEMENTATION.md) to add a shader scene or understand capture, timing and saved state. The Windows [Llamascope reference](https://github.com/MrBrooks-code/llamascope) is a separate repository and remains unchanged. Physical vintage display conversion has not been tested.
 

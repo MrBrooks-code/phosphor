@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 import MetalKit
 import PhosphorCore
+import PhosphorCapture
 
 @main
 struct PhosphorApp: App {
@@ -25,7 +26,7 @@ struct PhosphorApp: App {
         WindowGroup("Phosphor · Control desk", id: "desk") {
             DeskView(desk: desk).preferredColorScheme(.dark)
                 .frame(minWidth: 740, minHeight: 620)
-                .onAppear { desk.startup() }
+                .onAppear { delegate.desk = desk; desk.startup() }
         }
         .defaultSize(width: 920, height: 760)
         .commands {
@@ -37,6 +38,18 @@ struct PhosphorApp: App {
     }
 }
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    weak var desk: DeskModel?
+    private var terminating = false
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard !terminating else { return .terminateLater }
+        guard let desk else { return .terminateNow }
+        terminating = true
+        desk.shutdown { [weak self] finished in
+            self?.terminating = false
+            sender.reply(toApplicationShouldTerminate: finished)
+        }
+        return .terminateLater
+    }
     func applicationDidFinishLaunching(_ notification: Notification) { NSApp.setActivationPolicy(.regular); NSApp.activate(ignoringOtherApps: true) }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 }
@@ -60,6 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var timer: Timer?
     private var observer: NSObjectProtocol?
     private var started = false
+    private var shuttingDown = false
     private var diagnosticCount = 0
     private var presentationActivity: NSObjectProtocol?
     private let preferencesKey = "Phosphor.savedDesk.v1"
@@ -92,20 +106,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             diagnosticCount += 1
             if diagnosticCount % 5 == 0 {
                 let metrics = windows.values.map { "\($0.title): fps=\(String(format: "%.1f", $0.renderer.fps)) gpu_ms=\(String(format: "%.2f", $0.renderer.gpuMilliseconds))" }.joined(separator: "; ")
-                print("PHOSPHOR frames=\(features.totalFrames) rms=\(features.rms) peak=\(features.peak) bass=\(features.bass) mid=\(features.mid) high=\(features.high) drops=\(dropped) status=\(status) \(metrics)")
+                let stereoDifference = zip(features.left, features.right).reduce(Float(0)) { max($0, abs($1.0-$1.1)) }
+                print("PHOSPHOR frames=\(features.totalFrames) rms=\(features.rms) peak=\(features.peak) bass=\(features.bass) mid=\(features.mid) high=\(features.high) stereo_delta=\(stereoDifference) drops=\(dropped) status=\(status) \(metrics)")
                 fflush(stdout)
             }
         }
     }
     func startCapture() {
-        guard !previewMode else { return }
+        guard !previewMode, !starting, !running, !shuttingDown else { return }
         starting = true; notice = ""
         audio.start(musicOnly: musicOnly) { [weak self] error in
+            guard self?.shuttingDown == false else { return }
             self?.starting = false; self?.running = error == nil
             if let error { self?.notice = error }
         }
     }
-    func stopCapture() { audio.stop(); running = false }
+    func stopCapture() {
+        guard !starting else { return }
+        starting = true
+        audio.stop { [weak self] error in
+            self?.starting = false; self?.running = false
+            if let error { self?.notice = error }
+        }
+    }
+    func shutdown(completion: @escaping (Bool) -> Void) {
+        shuttingDown = true; starting = true
+        status = "Closing capture · waiting for Core Audio"
+        audio.stop { [weak self] error in
+            self?.running = false
+            if error != nil { self?.shuttingDown = false; self?.starting = false }
+            if let error { self?.notice = error }
+            completion(error == nil)
+        }
+    }
     func addOutput() {
         guard outputs.count < 16 else { notice = "The prototype supports up to 16 output configurations."; return }
         var number = outputs.count+1
