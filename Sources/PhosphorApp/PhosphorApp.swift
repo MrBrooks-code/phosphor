@@ -68,6 +68,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if outputs.isEmpty {
             outputs = [OutputState(name: "Output 1", scene: .scope, palette: .mint), OutputState(name: "Output 2", scene: .bloom, palette: .ultraviolet)]
         }
+        if ProcessInfo.processInfo.arguments.contains("--stage-response") && UserDefaults.standard.data(forKey: preferencesKey) == nil {
+            outputs = Scene.allCases.filter { $0.shaderID >= 3 }.map {
+                OutputState(name: $0.rawValue + " · LIVE",scene: $0,palette: $0.suggestedPalette)
+            }
+        }
         if previewMode {
             outputs = Scene.allCases.filter { $0.shaderID >= 3 }.map {
                 OutputState(name: $0.rawValue + " · SYNTHETIC",scene: $0,palette: $0.suggestedPalette)
@@ -83,6 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !started else { return }; started = true
         let args = ProcessInfo.processInfo.arguments
         if previewMode { for output in outputs { open(output.id) } }
+        if args.contains("--stage-response") { for output in outputs { open(output.id) } }
         if args.contains("--stage-outputs") { for output in outputs.prefix(2) { open(output.id) } }
         if args.contains("--capture-music") { startCapture() }
     }
@@ -92,7 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             diagnosticCount += 1
             if diagnosticCount % 5 == 0 {
                 let metrics = windows.values.map { "\($0.title): fps=\(String(format: "%.1f", $0.renderer.fps)) gpu_ms=\(String(format: "%.2f", $0.renderer.gpuMilliseconds))" }.joined(separator: "; ")
-                print("PHOSPHOR frames=\(features.totalFrames) rms=\(features.rms) peak=\(features.peak) bass=\(features.bass) mid=\(features.mid) high=\(features.high) drops=\(dropped) status=\(status) \(metrics)")
+                print("PHOSPHOR frames=\(features.totalFrames) rms=\(features.rms) peak=\(features.peak) bass=\(features.bass) mid=\(features.mid) high=\(features.high) hit=\(features.transient) drops=\(dropped) status=\(status) \(metrics)")
                 fflush(stdout)
             }
         }
@@ -242,7 +248,7 @@ struct DeskView: View {
                 ForEach(desk.outputs) { output in
                     OutputCard(output: output, desk: desk)
                 }
-                Text("The first output leads mirrored and coordinated roles. Mirrors show its rendered scene. Coordinated outputs share palette, intensity, audio and time; each keeps its composition. Displays present on their own refresh clocks.").font(.caption).foregroundStyle(.secondary)
+                Text("The first output leads mirrored and coordinated roles. Mirrors show its rendered scene. Coordinated outputs share palette, intensity, reactivity, audio and time; each keeps its composition. Displays present on their own refresh clocks.").font(.caption).foregroundStyle(.secondary)
                 if !desk.notice.isEmpty { Text(desk.notice).foregroundStyle(.orange).font(.caption).textSelection(.enabled) }
             }.padding(28)
         }.background(Color(red: 0.035,green: 0.045,blue: 0.055))
@@ -263,6 +269,13 @@ struct OutputCard: View {
     func binding<T>(_ path: WritableKeyPath<OutputState,T>) -> Binding<T> {
         Binding(get: { desk.outputs.first(where: {$0.id == output.id})?[keyPath: path] ?? output[keyPath: path] }, set: { value in
             guard var edited = desk.outputs.first(where: {$0.id == output.id}) else { return }; edited[keyPath: path] = value; desk.update(edited)
+        })
+    }
+    // Show inherited levels while keeping the independent values saved for role changes.
+    func sharedBinding(_ path: WritableKeyPath<SceneSettings,Float>) -> Binding<Float> {
+        Binding(get: { desk.settings(output.id).0[keyPath: path] }, set: { value in
+            guard var edited = desk.outputs.first(where: {$0.id == output.id}) else { return }
+            edited.settings[keyPath: path] = value; desk.update(edited)
         })
     }
     var isLeader: Bool { output.id == desk.outputs.first?.id }
@@ -298,7 +311,13 @@ struct OutputCard: View {
                 Picker("Quality",selection: binding(\.quality)) { ForEach(Quality.allCases,id: \.self) { Text($0.rawValue).tag($0) } }.disabled(output.role == .mirrored && !isLeader)
             }.font(.caption)
             HStack {
-                Text("Intensity").font(.caption); Slider(value: binding(\.settings.intensity),in: 0...2).disabled(output.role != .independent && !isLeader)
+                Text("Reactivity").font(.caption)
+                Slider(value: sharedBinding(\.reactivity),in: 0...2).disabled(output.role != .independent && !isLeader)
+                    .help("Music-driven shape and motion: 0 is calm, 1 is balanced, 2 is strong. Intensity controls exposure.")
+                Text(String(format: "%.2f",desk.settings(output.id).0.reactivity)).font(.system(.caption,design: .monospaced)).frame(width: 36)
+            }
+            HStack {
+                Text("Intensity · exposure").font(.caption); Slider(value: sharedBinding(\.intensity),in: 0...2).disabled(output.role != .independent && !isLeader)
                 Text("Persistence").font(.caption); Slider(value: binding(\.settings.persistence),in: 0...0.96).disabled(output.role == .mirrored && !isLeader)
             }
         }.padding(18).background(.white.opacity(0.035),in: RoundedRectangle(cornerRadius: 12))

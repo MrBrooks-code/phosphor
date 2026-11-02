@@ -41,9 +41,11 @@ Start Music playback, choose **Apple Music only** or **System mix**, and press *
 
 The tap is private and unmuted. It does not change your default output, install a driver, or reroute playback. Samples remain in a short in-memory history; Phosphor does not persist recordings or upload audio. Protected content may still be unavailable on other tracks, devices, or OS versions.
 
-Each output card has a scene, palette, intensity, persistence, display, quality and role. **Open** creates its window; **Fullscreen** presents without controls; **Escape** leaves fullscreen. **Close** keeps the saved configuration, while the trash button removes it. Use **Window → Control desk** (⇧⌘D) to return to the controls. A display change while fullscreen is saved and applied when fullscreen ends. Unavailable screens fall back to the operator display.
+**Reactivity** controls music-driven shape, local accents, and motion from 0 (calm) through 1 (balanced default) to 2 (strong). The response saturates at 1.5 per feature to bound deformation. **Intensity** remains brightness/exposure, from 0 to 2. Quiet input retains each composition; it does not switch to demo animation. Scope retains a smaller actual stereo trace at zero Reactivity. Old saved desks receive Reactivity 1 without changing their existing values.
 
-The first output is the leader. **Independent** outputs keep their own scene state and settings. **Mirrored** outputs sample the leader's rendered image, including feedback; their source render quality comes from the leader. Aspect ratio is preserved with black bars when needed. Closing the leader also closes its mirrors. **Coordinated** outputs share the leader's palette/intensity plus common audio and clock, while keeping their own scene, phase, persistence and quality. Each display presents on its own refresh clock; this is not hardware frame lock.
+Each output card has a scene, palette, Reactivity, Intensity, persistence, display, quality and role. **Open** creates its window; **Fullscreen** presents without controls; **Escape** leaves fullscreen. **Close** keeps the saved configuration, while the trash button removes it. Use **Window → Control desk** (⇧⌘D) to return to the controls. A display change while fullscreen is saved and applied when fullscreen ends. Unavailable screens fall back to the operator display.
+
+The first output is the leader. **Independent** outputs keep their own scene state and settings. **Mirrored** outputs sample the leader's rendered image, including feedback; their source render quality comes from the leader. Aspect ratio is preserved with black bars when needed. Closing the leader also closes its mirrors. **Coordinated** outputs share the leader's palette/Intensity/Reactivity plus common audio and clock, while keeping their own scene, phase, persistence and quality. Each display presents on its own refresh clock; this is not hardware frame lock.
 
 The default quality caps the longest rendered dimension at 1920 pixels. Half resolution and native pixels are also available. Resizing or changing render resolution clears feedback textures; scene settings survive. Desk parameters use a validated, versioned local preferences document. Window placement/fullscreen state and audio permission are not saved as scene parameters. Capture never starts automatically during a normal launch.
 
@@ -63,6 +65,15 @@ To verify a copied app's bundled shader and all Metal pipelines without starting
 build/Phosphor.app/Contents/MacOS/Phosphor --validate-resources
 ```
 
+
+For the primary **actual-audio** response development preview:
+
+```sh
+scripts/build.sh release --response-development
+"build/Phosphor Response.app/Contents/MacOS/Phosphor" --stage-response --capture-music --diagnostics
+```
+
+This distinct bundle uses `com.mrbrooks.phosphor.response-2d5d` and separate preferences. `--stage-response` seeds the five new scenes only when no desk is saved and opens its configured outputs; it supplies no audio. `--capture-music` starts the selected real tap. It never controls Music playback. A silent or failed tap remains silent. Normal Finder launch starts at the desk with capture stopped. See [response evidence and limits](docs/REACTIVITY.md).
 
 To build an isolated scene gallery beside the regular app:
 

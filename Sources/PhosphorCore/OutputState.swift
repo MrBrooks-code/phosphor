@@ -34,8 +34,19 @@ public struct SceneSettings: Codable, Equatable, Sendable {
     public var scene: Scene = .scope
     public var palette: Palette = .mint
     public var intensity: Float = 1
+    public var reactivity: Float = 1
     public var persistence: Float = 0.72
     public init(scene: Scene = .scope, palette: Palette = .mint) { self.scene = scene; self.palette = palette }
+    private enum CodingKeys: String, CodingKey { case scene, palette, intensity, reactivity, persistence }
+    // Keep all saved values. Only desks made before Reactivity receive its default.
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        scene = try values.decode(Scene.self, forKey: .scene)
+        palette = try values.decode(Palette.self, forKey: .palette)
+        intensity = try values.decode(Float.self, forKey: .intensity)
+        reactivity = values.contains(.reactivity) ? try values.decode(Float.self, forKey: .reactivity) : 1
+        persistence = try values.decode(Float.self, forKey: .persistence)
+    }
 }
 public struct OutputState: Identifiable, Codable, Equatable, Sendable {
     public var id = UUID()
@@ -47,14 +58,14 @@ public struct OutputState: Identifiable, Codable, Equatable, Sendable {
     public init(name: String, scene: Scene = .scope, palette: Palette = .mint) {
         self.name = name; settings = SceneSettings(scene: scene, palette: palette)
     }
-    // Mirrored outputs use the leader's settings and phase. Coordinated outputs share its palette and intensity.
+    // Mirrored outputs use the leader's settings and phase. Coordinated outputs share its palette, intensity, and reactivity.
     public func resolved(leader: OutputState?) -> SceneSettings {
         guard let leader, leader.id != id else { return settings }
         switch role {
         case .independent: return settings
         case .mirrored: return leader.settings
         case .coordinated:
-            var value = settings; value.palette = leader.settings.palette; value.intensity = leader.settings.intensity
+            var value = settings; value.palette = leader.settings.palette; value.intensity = leader.settings.intensity; value.reactivity = leader.settings.reactivity
             return value
         }
     }
@@ -68,9 +79,18 @@ public struct SavedDesk: Codable {
         let value = try JSONDecoder().decode(Self.self, from: data)
         guard value.version == 1, value.outputs.count <= 16,
               Set(value.outputs.map(\.id)).count == value.outputs.count,
-              value.outputs.allSatisfy({ $0.settings.intensity.isFinite && (0...2).contains($0.settings.intensity) && $0.settings.persistence.isFinite && (0...0.96).contains($0.settings.persistence) }) else {
+              value.outputs.allSatisfy({ $0.settings.intensity.isFinite && (0...2).contains($0.settings.intensity) && $0.settings.reactivity.isFinite && (0...2).contains($0.settings.reactivity) && $0.settings.persistence.isFinite && (0...0.96).contains($0.settings.persistence) }) else {
             throw CocoaError(.coderReadCorrupt)
         }
         return value
+    }
+}
+
+// Integrate bounded audio motion in seconds. Wrap whole cycles to retain Float precision.
+public enum ResponseMotion {
+    public static func advance(_ travel: Float, elapsed: Double, bass: Float, reactivity: Float) -> Float {
+        let dt = Float(elapsed.isFinite ? min(max(elapsed,0),0.1) : 0)
+        let energy = min(1.5,max(0,bass)*min(2,max(0,reactivity)))
+        return (travel + dt * (0.065 + energy*0.11)).truncatingRemainder(dividingBy: 1)
     }
 }
