@@ -14,7 +14,7 @@ Outrun keeps its horizon, sun, mountains and negative space while bass changes t
 
 The launchable local app is:
 
-`/Users/brooks/.codex/worktrees/2d5d/llamascope/build/Phosphor Response.app`
+`build/Phosphor Response.app`
 
 Build and opt-in diagnostic launch:
 
