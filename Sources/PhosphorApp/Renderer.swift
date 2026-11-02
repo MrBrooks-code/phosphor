@@ -26,6 +26,7 @@ final class SceneRenderer: NSObject {
     private var slot = 0
     private let waveBuffers: [MTLBuffer]
     private let spectrumBuffers: [MTLBuffer]
+    var previewFeatures: ((Double) -> AudioFeatures)?
     var mirrorSource: (() -> SceneRenderer?)?
     var state: () -> (SceneSettings, Quality, Float)
     let audio: AudioEngine
@@ -37,13 +38,7 @@ final class SceneRenderer: NSObject {
     init(audio: AudioEngine, state: @escaping () -> (SceneSettings, Quality, Float)) throws {
         guard let device = Self.device, let commands = device.makeCommandQueue() else { throw RendererError.unavailable }
         self.commands = commands; self.audio = audio; self.state = state
-        let resources: Bundle
-        if let url = Bundle.main.resourceURL?.appendingPathComponent("Phosphor_PhosphorApp.bundle"), let bundled = Bundle(url: url) { resources = bundled }
-        else if Bundle.main.bundleURL.pathExtension == "app" { throw RendererError.missingShader }
-        else { resources = Bundle.module }
-        guard let shader = resources.url(forResource: "Scenes", withExtension: "metal") else { throw RendererError.missingShader }
-        let source = try String(contentsOf: shader, encoding: .utf8)
-        let library = try device.makeLibrary(source: source, options: nil)
+        let library = try Self.shaderLibrary(device: device)
         func pipeline(_ fragment: String, _ format: MTLPixelFormat) throws -> MTLRenderPipelineState {
             let descriptor = MTLRenderPipelineDescriptor()
             descriptor.vertexFunction = library.makeFunction(name: "fullscreen")
@@ -65,6 +60,16 @@ final class SceneRenderer: NSObject {
         spectrumBuffers = (0..<3).map { _ in device.makeBuffer(length: 64*4, options: .storageModeShared)! }
         precondition(MemoryLayout<GPUUniforms>.stride == 64)
         super.init()
+    }
+    // Read the packaged source for both live rendering and native shader checks.
+    static func shaderLibrary(device: MTLDevice) throws -> MTLLibrary {
+        let resources: Bundle
+        if let url = Bundle.main.resourceURL?.appendingPathComponent("Phosphor_PhosphorApp.bundle"), let bundled = Bundle(url: url) { resources = bundled }
+        else if Bundle.main.bundleURL.pathExtension == "app" { throw RendererError.missingShader }
+        else { resources = Bundle.module }
+        guard let shader = resources.url(forResource: "Scenes", withExtension: "metal") else { throw RendererError.missingShader }
+        let source = try String(contentsOf: shader, encoding: .utf8)
+        return try device.makeLibrary(source: source, options: nil)
     }
     func draw(drawable: CAMetalDrawable, time: Double) {
         guard slots.wait(timeout: .now()) == .success else { return }
@@ -106,12 +111,12 @@ final class SceneRenderer: NSObject {
             }
         }
         lastSettings = settings
-        let feature = audio.snapshot().0
+        let feature = previewFeatures?(now-Self.epoch) ?? audio.snapshot().0
         let wave = waveBuffers[slot].contents().bindMemory(to: SIMD2<Float>.self, capacity: 512)
         for i in 0..<512 { wave[i] = SIMD2(feature.left[i],feature.right[i]) }
         feature.spectrum.withUnsafeBytes { bytes in spectrumBuffers[slot].contents().copyMemory(from: bytes.baseAddress!, byteCount: bytes.count) }
         travel += Float(dt) * (0.065 + feature.bass*0.035)
-        var uniforms = GPUUniforms(resolution: SIMD2(Float(width),Float(height)), time: Float(now-Self.epoch), dt: Float(dt), bass: feature.bass, mid: feature.mid, high: feature.high, transient: feature.transient, rms: feature.rms, intensity: settings.intensity, persistence: settings.persistence, phase: phase, scene: UInt32(Scene.allCases.firstIndex(of: settings.scene)!), palette: UInt32(Palette.allCases.firstIndex(of: settings.palette)!))
+        var uniforms = GPUUniforms(resolution: SIMD2(Float(width),Float(height)), time: Float(now-Self.epoch), dt: Float(dt), bass: feature.bass, mid: feature.mid, high: feature.high, transient: feature.transient, rms: feature.rms, intensity: settings.intensity, persistence: settings.persistence, phase: phase, scene: settings.scene.shaderID, palette: UInt32(Palette.allCases.firstIndex(of: settings.palette)!))
         uniforms.padding.x = travel
         let pass = MTLRenderPassDescriptor(); pass.colorAttachments[0].texture = textures[front]
         pass.colorAttachments[0].loadAction = .dontCare; pass.colorAttachments[0].storeAction = .store

@@ -23,7 +23,7 @@ Time comes from one monotonic process clock. Tunnel travel integrates elapsed ti
 To add a scene:
 
 1. Add a stable case to `Scene` in `OutputState.swift`. Saved cases use their string values, so renaming an existing case needs a migration.
-2. Add its branch to `sceneFragment` in `Scenes.metal`. The scene index is `Scene.allCases` order; preserve the order or update that mapping together.
+2. Add its branch to `sceneFragment` in `Scenes.metal`. `Scene.shaderID` is the explicit dispatch contract; preserve existing IDs (0–2 for the original scenes). New IDs 3–7 name the five additional scenes. Enum order affects only picker order.
 3. Use the shared inputs for distinct musical roles. Keep per-scene temporal state in the renderer/feedback image, outside the capture path.
 4. Add parameters to `SceneSettings` with decoding defaults and a schema migration if older saves must survive. Validate their bounds in `SavedDesk.decode`, and expose a bounded control in `OutputCard`.
 5. Build, launch, inspect the real shader, and exercise at least two simultaneous outputs. Swift compilation does not compile runtime Metal shader source.
@@ -37,3 +37,12 @@ There is deliberately no plugin runtime, node editor, network service, live shad
 Parameters are saved as a JSON-encoded schema-version-1 `SavedDesk` in the application's preferences. Loading rejects unknown versions, duplicate output IDs, more than 16 outputs, and invalid intensity/persistence values. Screen IDs are stable Core Graphics display identifiers where macOS provides them. An unavailable screen retains its saved selection and the window falls back to the operator display. Reassignment does not recreate the renderer. Resolution changes do recreate feedback textures. The current prototype does not persist exact window frames or fullscreen state.
 
 All app work is local. The build script performs local ad-hoc signing and does not install, publish, notarize or release the app.
+
+
+## Additional scene fields
+
+The five additional scene functions use the same 64-byte uniforms and per-output textures. Outrun has three interpolated mountain layers and an analytic perspective grid; Crystal has three faceted radial layers; Galaxy checks two layers of nine nearby polar cells rather than an unbounded particle list; Rain evaluates one glyph in each of two stream layers; Plasma sums five Gaussian sources. There are no per-frame spawns, new textures, new capture paths, or global mutable scene state. Radial scenes scale to the shorter window dimension so portrait windows keep circular geometry. Rain uses logical cells rather than screen pixels, so resizing does not stretch glyph proportions.
+
+The existing analyzer supplies attack/release envelopes. Geometry responds to those bounded features; time does not get multiplied by the current band value. Outrun uses the existing integrated travel field. Galaxy uses the output's previous image only as a short decaying maximum, so highlights do not accumulate into a bright feedback field. Other new scenes redraw analytic geometry directly; persistence changes only Galaxy's trails among the five additions. The generic persistence control remains available for compatibility when switching scenes.
+
+`SceneValidation` is an explicit synthetic fixture and offscreen GPU check, not an audio source. `--scene-gallery` overrides only the renderer feature snapshot and the meter display, opens five temporary configurations, disables capture, and bypasses saves. The optional development build sets this mode in its own Info.plist and uses a separate launch identity. Normal launch, capture, and saved preferences retain the prototype paths.

@@ -88,6 +88,35 @@ final class PhosphorCoreTests {
         expectThrowsError(try SavedDesk.decode(JSONEncoder().encode(SavedDesk(outputs: [invalid]))))
         expectThrowsError(try SavedDesk.decode(JSONEncoder().encode(SavedDesk(outputs: [outputs[0], outputs[0]]))))
     }
+    func testSceneCompatibilityAndIndependentNewScenes() throws {
+        expectEqual(Scene.allCases.count,8)
+        expectEqual(Scene.scope.shaderID,0); expectEqual(Scene.bloom.shaderID,1); expectEqual(Scene.tunnel.shaderID,2)
+        expectEqual(Set(Scene.allCases.map(\.shaderID)).count,8)
+        let oldNames = ["Phosphor Scope", "Feedback Bloom", "Vector Tunnel"]
+        for (index,name) in oldNames.enumerated() {
+            let decoded = try JSONDecoder().decode(Scene.self,from: JSONEncoder().encode(name))
+            expectEqual(decoded.shaderID,UInt32(index))
+        }
+        let scenes: [Scene] = [.outrun,.crystal,.galaxy,.rain,.plasma]
+        let outputs = scenes.map { OutputState(name: $0.rawValue,scene: $0,palette: $0.suggestedPalette) }
+        expectEqual(try SavedDesk.decode(JSONEncoder().encode(SavedDesk(outputs: outputs))).outputs,outputs)
+        let leader = outputs[0]
+        for output in outputs.dropFirst() {
+            var follower = output
+            follower.role = .coordinated
+            expectEqual(follower.resolved(leader: leader).scene,output.settings.scene)
+            expectEqual(follower.resolved(leader: leader).persistence,output.settings.persistence)
+            expectEqual(follower.resolved(leader: leader).palette,leader.settings.palette)
+            follower.role = .mirrored
+            expectEqual(follower.resolved(leader: leader),leader.settings)
+            follower.role = .independent
+            expectEqual(follower.settings,output.settings)
+            expectEqual(follower.resolved(leader: leader),output.settings)
+        }
+        var changed = outputs[1]; changed.settings.scene = .rain; changed.settings.persistence = 0.1
+        expectEqual(outputs[0],leader)
+        expectEqual(outputs[1].settings.scene,.crystal)
+    }
     func testResolutionCaps() {
         expectEqual(Quality.balanced.scale(width: 3840,height: 2160),0.5)
         expectEqual(Quality.native.scale(width: 3840,height: 2160),1)
@@ -102,5 +131,6 @@ checks.testHighFrequencyAndSilenceRelease()
 checks.testIndependentMirrorAndCoordinatedSettings()
 try checks.testVersionedSaveAndInvalidData()
 checks.testResolutionCaps()
-print("7 core checks completed; \(failures) failures")
+try checks.testSceneCompatibilityAndIndependentNewScenes()
+print("8 core checks completed; \(failures) failures")
 exit(failures == 0 ? 0 : 1)

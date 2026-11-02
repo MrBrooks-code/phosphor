@@ -1,6 +1,27 @@
 import Foundation
 
-public enum Scene: String, Codable, CaseIterable, Sendable { case scope = "Phosphor Scope", bloom = "Feedback Bloom", tunnel = "Vector Tunnel" }
+// Saved names and shader IDs stay stable when more scenes are added.
+public enum Scene: String, Codable, CaseIterable, Sendable {
+    case scope = "Phosphor Scope", bloom = "Feedback Bloom", tunnel = "Vector Tunnel"
+    case outrun = "Outrun Horizon", crystal = "Crystal Mandala", galaxy = "Spiral Galaxy"
+    case rain = "Digital Rain", plasma = "Plasma Drift"
+    public var shaderID: UInt32 {
+        switch self {
+        case .scope: return 0; case .bloom: return 1; case .tunnel: return 2
+        case .outrun: return 3; case .crystal: return 4; case .galaxy: return 5
+        case .rain: return 6; case .plasma: return 7
+        }
+    }
+    public var suggestedPalette: Palette {
+        switch self {
+        case .outrun, .crystal: return .ultraviolet
+        case .galaxy: return .ice
+        case .rain, .scope: return .mint
+        case .plasma, .tunnel: return .ember
+        case .bloom: return .ultraviolet
+        }
+    }
+}
 public enum Palette: String, Codable, CaseIterable, Sendable { case mint = "Mint", ember = "Ember", ultraviolet = "Ultraviolet", ice = "Ice" }
 public enum OutputRole: String, Codable, CaseIterable, Sendable { case independent = "Independent", mirrored = "Mirrored", coordinated = "Coordinated" }
 public enum Quality: String, Codable, CaseIterable, Sendable {

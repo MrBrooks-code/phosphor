@@ -2,11 +2,19 @@
 
 **Sound takes shape.**
 
-Phosphor is a native macOS music visualizer built with SwiftUI, AppKit, Core Audio process taps, and Metal. The first prototype includes three live GPU scenes and a separate control desk for multiple presentation outputs.
+Phosphor is a native macOS music visualizer built with SwiftUI, AppKit, Core Audio process taps, and Metal. The prototype includes eight live GPU scenes and a separate control desk for multiple presentation outputs.
 
 - **Phosphor Scope** draws the actual stereo X/Y trace with phosphor persistence and a logarithmic spectrum.
 - **Feedback Bloom** feeds its previous image through rotation, flow and decay. Bass changes its shape, mids drive its ribbons, upper frequencies add filaments, and transients light the center.
 - **Vector Tunnel** uses perspective rings, a moving vanishing point, treble spokes and rhythmic accents.
+
+- **Outrun Horizon** places a striped sun above mountain silhouettes, a frequency skyline, and an advancing perspective grid.
+- **Crystal Mandala** builds three counter-rotating faceted crowns with separate bass, mid, and air detail.
+- **Spiral Galaxy** lights four particle arms around a breathing core, with short controlled trails.
+- **Digital Rain** drops procedural glyph streams through two depth layers, with bright heads and spectrum-mapped columns.
+- **Plasma Drift** blends five moving energy sources into calm colored fields and luminous contours.
+
+See [scene notes and preview checks](docs/SCENES.md) for the artistic choices, reference sources, and validation limits.
 
 ## Build and run
 
@@ -45,7 +53,7 @@ For an explicit diagnostic launch with two configured windows and Music capture:
 build/Phosphor.app/Contents/MacOS/Phosphor --stage-outputs --capture-music --diagnostics
 ```
 
-Quit any existing Phosphor instance before this diagnostic launch. This prints numeric audio features and renderer timing, not raw samples. It is an opt-in diagnostic command; there is no hidden demo source.
+Quit any existing Phosphor instance before this diagnostic launch. This prints numeric audio features and renderer timing, not raw samples. It is an opt-in diagnostic command; normal launches use captured audio only. The explicit scene gallery below uses labeled synthetic features.
 
 Read [implementation notes](docs/IMPLEMENTATION.md) to add a shader scene or understand capture, timing and saved state. The Windows [Llamascope reference](https://github.com/MrBrooks-code/llamascope) is a separate repository and remains unchanged. Physical vintage display conversion has not been tested.
 
@@ -54,3 +62,21 @@ To verify a copied app's bundled shader and all Metal pipelines without starting
 ```sh
 build/Phosphor.app/Contents/MacOS/Phosphor --validate-resources
 ```
+
+
+To build an isolated scene gallery beside the regular app:
+
+```sh
+scripts/build.sh release --scene-development
+open "build/Phosphor Scenes.app"
+```
+
+This development artifact uses its own bundle ID and preferences. It opens all five new scenes with **labeled synthetic features**, disables capture, and does not save gallery changes. It does not replace or stop a running Phosphor. The normal build keeps the existing capture and saved-desk behavior. You can also opt into the temporary gallery with `--scene-gallery` on the normal executable.
+
+To exercise the actual packaged Metal shaders and export repeatable synthetic previews:
+
+```sh
+"build/Phosphor Scenes.app/Contents/MacOS/Phosphor" --validate-scenes "$PWD/build/scene-previews"
+```
+
+This checks finite pixels, response to isolated bands, palettes and zero intensity, exports landscape and portrait PNGs, and measures bounded offscreen GPU work at windowed, 1080p and 4K sizes. It does not establish capture correctness, display pacing, or musical feel.

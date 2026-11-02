@@ -1,0 +1,77 @@
+Synthetic native shader checks on Apple M3 Ultra
+GPU command duration excludes display pacing.
+Outrun Horizon combined: 15280 channels changed from silence.
+Outrun Horizon bass: 28762 channels changed from silence.
+Outrun Horizon mid: 6147 channels changed from silence.
+Outrun Horizon high: 7937 channels changed from silence.
+Outrun Horizon hit: 0 channels changed from silence.
+Outrun Horizon zero intensity: 415949 channels changed from silence.
+Outrun Horizon alternate palette 1: 238581 channels changed from combined.
+Outrun Horizon time: 141 channels changed from combined.
+Outrun Horizon phase: 8443 channels changed from combined.
+Outrun Horizon alternate palette 2: 481719 channels changed from combined.
+Outrun Horizon alternate palette 3: 396562 channels changed from combined.
+Outrun Horizon 640x360: median 0.075 ms, max 0.120 ms GPU (10 warm samples)
+Outrun Horizon 1920x1080: median 0.198 ms, max 0.199 ms GPU (10 warm samples)
+Outrun Horizon 3840x2160: median 0.533 ms, max 0.537 ms GPU (10 warm samples)
+Outrun Horizon 2160x3840: median 0.362 ms, max 0.397 ms GPU (10 warm samples)
+Crystal Mandala combined: 73417 channels changed from silence.
+Crystal Mandala bass: 60151 channels changed from silence.
+Crystal Mandala mid: 42895 channels changed from silence.
+Crystal Mandala high: 52673 channels changed from silence.
+Crystal Mandala hit: 12519 channels changed from silence.
+Crystal Mandala zero intensity: 125860 channels changed from silence.
+Crystal Mandala alternate palette 1: 114620 channels changed from combined.
+Crystal Mandala time: 112738 channels changed from combined.
+Crystal Mandala phase: 166395 channels changed from combined.
+Crystal Mandala alternate palette 2: 123011 channels changed from combined.
+Crystal Mandala alternate palette 3: 122729 channels changed from combined.
+Crystal Mandala 640x360: median 0.066 ms, max 0.069 ms GPU (10 warm samples)
+Crystal Mandala 1920x1080: median 0.160 ms, max 0.228 ms GPU (10 warm samples)
+Crystal Mandala 3840x2160: median 0.498 ms, max 0.571 ms GPU (10 warm samples)
+Crystal Mandala 2160x3840: median 0.489 ms, max 0.534 ms GPU (10 warm samples)
+Spiral Galaxy combined: 32890 channels changed from silence.
+Spiral Galaxy bass: 18500 channels changed from silence.
+Spiral Galaxy mid: 23280 channels changed from silence.
+Spiral Galaxy high: 22729 channels changed from silence.
+Spiral Galaxy hit: 4633 channels changed from silence.
+Spiral Galaxy zero intensity: 83254 channels changed from silence.
+Spiral Galaxy alternate palette 1: 53689 channels changed from combined.
+Spiral Galaxy time: 62465 channels changed from combined.
+Spiral Galaxy phase: 74070 channels changed from combined.
+Spiral Galaxy alternate palette 2: 90749 channels changed from combined.
+Spiral Galaxy alternate palette 3: 64740 channels changed from combined.
+Spiral Galaxy 640x360: median 0.153 ms, max 0.172 ms GPU (10 warm samples)
+Spiral Galaxy 1920x1080: median 0.669 ms, max 0.673 ms GPU (10 warm samples)
+Spiral Galaxy 3840x2160: median 2.452 ms, max 2.592 ms GPU (10 warm samples)
+Spiral Galaxy 2160x3840: median 2.450 ms, max 2.604 ms GPU (10 warm samples)
+Digital Rain combined: 41976 channels changed from silence.
+Digital Rain bass: 22124 channels changed from silence.
+Digital Rain mid: 24604 channels changed from silence.
+Digital Rain high: 22338 channels changed from silence.
+Digital Rain hit: 19054 channels changed from silence.
+Digital Rain zero intensity: 31847 channels changed from silence.
+Digital Rain alternate palette 1: 60616 channels changed from combined.
+Digital Rain time: 90332 channels changed from combined.
+Digital Rain phase: 64531 channels changed from combined.
+Digital Rain alternate palette 2: 58383 channels changed from combined.
+Digital Rain alternate palette 3: 40498 channels changed from combined.
+Digital Rain 640x360: median 0.060 ms, max 0.083 ms GPU (10 warm samples)
+Digital Rain 1920x1080: median 0.124 ms, max 0.206 ms GPU (10 warm samples)
+Digital Rain 3840x2160: median 0.333 ms, max 0.348 ms GPU (10 warm samples)
+Digital Rain 2160x3840: median 0.328 ms, max 0.338 ms GPU (10 warm samples)
+Plasma Drift combined: 255409 channels changed from silence.
+Plasma Drift bass: 306044 channels changed from silence.
+Plasma Drift mid: 127694 channels changed from silence.
+Plasma Drift high: 58876 channels changed from silence.
+Plasma Drift hit: 168944 channels changed from silence.
+Plasma Drift zero intensity: 651452 channels changed from silence.
+Plasma Drift alternate palette 1: 652427 channels changed from combined.
+Plasma Drift time: 254973 channels changed from combined.
+Plasma Drift phase: 518861 channels changed from combined.
+Plasma Drift alternate palette 2: 691200 channels changed from combined.
+Plasma Drift alternate palette 3: 691200 channels changed from combined.
+Plasma Drift 640x360: median 0.054 ms, max 0.080 ms GPU (10 warm samples)
+Plasma Drift 1920x1080: median 0.094 ms, max 0.690 ms GPU (10 warm samples)
+Plasma Drift 3840x2160: median 0.241 ms, max 0.264 ms GPU (10 warm samples)
+Plasma Drift 2160x3840: median 0.241 ms, max 0.268 ms GPU (10 warm samples)
