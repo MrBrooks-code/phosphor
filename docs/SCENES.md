@@ -1,6 +1,6 @@
 # Five Llamascope scenes
 
-These additions extend the native prototype on `codex/native-phosphor-prototype`. The scene PR targets that branch while prototype PR #2 remains unmerged. It does not include the separate capture-start or AGENTS.md policy work.
+These additions extend the native prototype introduced by PR #2. The scene expansion keeps capture-start and AGENTS.md policy work separate.
 
 ## Composition and musical roles
 
@@ -32,7 +32,7 @@ The eight CoreChecks pass with zero failures, including stable original scene ID
 
 At 3840 × 2160 the final short-run GPU medians were 0.533 ms Outrun, 0.498 ms Crystal, 2.452 ms Galaxy, 0.333 ms Rain, and 0.241 ms Plasma on Apple M3 Ultra. These are ten warm offscreen command samples per scene, with textures reused, and include a clear plus scene/presentation passes. They are not sustained or simultaneous multi-4K measurements. The native desk reported variable presentation rates during focus, overlap, and display changes, from 0–1 fps on a moved/obscured Galaxy to roughly 12–41 fps on the other windows. Those counters do not establish smooth 60 fps; visible pacing, sustained memory, multi-display performance, and owner musical-feel acceptance remain open. No refresh-rate or frame-lock claim is made.
 
-Capture was stopped in the existing app when first inspected, and this task deliberately leaves capture startup to its separate chat. Every preview and response fixture here is synthetic. No new actual-audio or Apple Music capture acceptance is claimed. The normal build retains capture; the development gallery disables it and labels both the desk and window names. No release, merge, or notarization occurred.
+Capture was stopped in the existing app when first inspected, and this task deliberately leaves capture startup to its separate chat. Every preview and response fixture here is synthetic. No new actual-audio or Apple Music capture acceptance is claimed. The normal build retains capture; the development gallery disables it and labels both the desk and window names. During the original scene validation, no release, merge, or notarization occurred.
 
 ## Local artifacts
 
