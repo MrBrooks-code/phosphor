@@ -41,3 +41,7 @@ The first CodeRabbit CLI review completed against commit `028fbc2427b3009fa51dfd
 ## Remaining owner acceptance
 
 The prototype is launchable and demonstrates real Apple Music audio, three GPU scenes and independent presentation windows. Owner acceptance still includes visual taste, motion comfort, controlled sustained presentation performance, intermittent capture-start robustness, clean-permission grant/deny recovery, output-device/route changes, physical hotplug, and any future vintage display conversion. Local Music files and broad protected-content compatibility were not tested. The app does not claim hardware frame lock or analog CRT compatibility.
+
+## Reactivity implementation follow-up
+
+The later actual-audio response preview, analyzer calibration, eight-scene GPU checks, and their specific limits are recorded in [REACTIVITY.md](REACTIVITY.md). The scene gallery under the de8f worktree remains synthetic; its earlier checks are not live musical-response evidence. The capture-startup branch and its native ownership work remain separate and unmerged by this task.

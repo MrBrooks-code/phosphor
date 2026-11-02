@@ -7,7 +7,7 @@ struct GPUUniforms {
     var time: Float; var dt: Float
     var bass: Float; var mid: Float; var high: Float; var transient: Float
     var rms: Float; var intensity: Float; var persistence: Float; var phase: Float
-    var scene: UInt32; var palette: UInt32; var padding = SIMD2<Float>.zero
+    var scene: UInt32; var palette: UInt32; var travel: Float = 0; var reactivity: Float = 1
 }
 
 // Each output owns feedback textures. All outputs read one clock and one audio snapshot.
@@ -115,9 +115,9 @@ final class SceneRenderer: NSObject {
         let wave = waveBuffers[slot].contents().bindMemory(to: SIMD2<Float>.self, capacity: 512)
         for i in 0..<512 { wave[i] = SIMD2(feature.left[i],feature.right[i]) }
         feature.spectrum.withUnsafeBytes { bytes in spectrumBuffers[slot].contents().copyMemory(from: bytes.baseAddress!, byteCount: bytes.count) }
-        travel += Float(dt) * (0.065 + feature.bass*0.035)
+        travel = ResponseMotion.advance(travel, elapsed: dt, bass: feature.bass, reactivity: settings.reactivity)
         var uniforms = GPUUniforms(resolution: SIMD2(Float(width),Float(height)), time: Float(now-Self.epoch), dt: Float(dt), bass: feature.bass, mid: feature.mid, high: feature.high, transient: feature.transient, rms: feature.rms, intensity: settings.intensity, persistence: settings.persistence, phase: phase, scene: settings.scene.shaderID, palette: UInt32(Palette.allCases.firstIndex(of: settings.palette)!))
-        uniforms.padding.x = travel
+        uniforms.travel = travel; uniforms.reactivity = settings.reactivity
         let pass = MTLRenderPassDescriptor(); pass.colorAttachments[0].texture = textures[front]
         pass.colorAttachments[0].loadAction = .dontCare; pass.colorAttachments[0].storeAction = .store
         guard let encoder = command.makeRenderCommandEncoder(descriptor: pass) else { slots.signal(); return }

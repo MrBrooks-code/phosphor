@@ -51,3 +51,9 @@ Previews are real native Metal renders with deterministic synthetic inputs, not 
 | Plasma Drift | `7-Plasma-Drift.png` |
 
 Each also has a `-4k.png` landscape export and a `-portrait.png` 2160 × 3840 export. `shader-checks.txt` contains the raw check/timing report. Build artifacts are deliberately untracked and can be reproduced with README commands.
+
+## Reactivity follow-up
+
+The later musical-response work preserves these compositions and explicit IDs. Reactivity now scales deformation, local accents, and motion independently of Intensity. Outrun has a bass-shaped floor, stronger grid travel/emphasis, bass/spectrum skyline, hit-lit windows and a narrow floor accent; its horizon, sun, dark terrain and treble stars remain. Crystal crowns move outward and stretch with their respective bands while hits light facet edges. Galaxy breathes radially and at its core, with mid-shaped arms and an onset orbital accent; idle rotation is slower. Rain groups adjacent columns for hits, adds a bounded bass displacement and tail length, and retains the same glyph shapes. Plasma slows idle flow while bands shape source spread, warp and contours, with a short hit boundary. Scope, Bloom, and Tunnel use the same bounded response; Scope retains an actual small trace at zero Reactivity.
+
+The expanded native checker covers all eight scenes, executes Scope's instanced trace pipeline, compares zero/strong Reactivity and half/zero Intensity, and checks that Reactivity produces a field change that cannot be fitted as a scalar exposure change. Zero Reactivity with audio equals silence at a fixed clock for the seven analytic fields; Scope keeps its actual instrument trace. The earlier Outrun no-hit expectation above describes the original scene checkpoint and is superseded by its local hit accent. Actual capture evidence and remaining musical-feel limits are in [REACTIVITY.md](REACTIVITY.md).

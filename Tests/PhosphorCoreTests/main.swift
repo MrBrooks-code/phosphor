@@ -117,6 +117,108 @@ final class PhosphorCoreTests {
         expectEqual(outputs[0],leader)
         expectEqual(outputs[1].settings.scene,.crystal)
     }
+    func testReactivityMigrationAndRoles() throws {
+        var leader = OutputState(name: "Leader",scene: .galaxy,palette: .ice)
+        leader.settings.intensity = 0.37; leader.settings.reactivity = 1.8
+        var follower = OutputState(name: "Follower",scene: .rain,palette: .ember)
+        follower.settings.reactivity = 0.2; follower.settings.persistence = 0.19; follower.quality = .native
+        let phase = follower.phase
+        expectEqual(follower.resolved(leader: leader).reactivity,0.2)
+        follower.role = .coordinated
+        expectEqual(follower.resolved(leader: leader).reactivity,1.8)
+        expectEqual(follower.resolved(leader: leader).intensity,0.37)
+        expectEqual(follower.resolved(leader: leader).scene,.rain)
+        expectEqual(follower.resolved(leader: leader).persistence,0.19)
+        expectEqual(follower.phase,phase); expectEqual(follower.quality,.native)
+        follower.role = .mirrored; expectEqual(follower.resolved(leader: leader),leader.settings)
+        follower.role = .independent; expectEqual(follower.resolved(leader: leader).reactivity,0.2)
+        var old = try JSONSerialization.jsonObject(with: JSONEncoder().encode(SavedDesk(outputs: [leader,follower]))) as! [String: Any]
+        var outputs = old["outputs"] as! [[String: Any]]
+        for i in outputs.indices {
+            var settings = outputs[i]["settings"] as! [String: Any]
+            settings.removeValue(forKey: "reactivity"); outputs[i]["settings"] = settings
+        }
+        old["outputs"] = outputs
+        let migrated = try SavedDesk.decode(JSONSerialization.data(withJSONObject: old)).outputs
+        leader.settings.reactivity = 1; follower.settings.reactivity = 1
+        expectEqual(migrated,[leader,follower])
+        for invalid: Float in [-0.01,2.01] {
+            leader.settings.reactivity = invalid
+            expectThrowsError(try SavedDesk.decode(JSONEncoder().encode(SavedDesk(outputs: [leader]))))
+        }
+        var settings = outputs[0]["settings"] as! [String: Any]; settings["reactivity"] = NSNull()
+        outputs[0]["settings"] = settings; old["outputs"] = outputs
+        expectThrowsError(try SavedDesk.decode(JSONSerialization.data(withJSONObject: old)))
+        leader.settings.reactivity = .infinity
+        expectThrowsError(try JSONEncoder().encode(SavedDesk(outputs: [leader])))
+    }
+    // Feed timed blocks through the same analyzer used by captured samples.
+    func feed(_ analyzer: AudioAnalyzer, start: Int, blocks: Int, amplitude: Float, frequency: Double = 93.75, air: Float = 0) -> AudioFeatures {
+        var result = AudioFeatures()
+        for block in 0..<blocks {
+            let frames = (0..<384).map { j in
+                let i = start+block*384+j
+                let value = amplitude*Float(sin(Double(i)*2*Double.pi*frequency/48000)) + air*Float(sin(Double(i)*2*Double.pi*6000/48000))
+                return StereoFrame(left: value,right: -value,hostTime: UInt64(i),sequence: UInt64(i))
+            }
+            frames.withUnsafeBufferPointer { analyzer.append($0) }
+            result = analyzer.analyse(sampleRate: 48000,elapsed: 0.008,fresh: true)
+        }
+        return result
+    }
+    func testGatedSensitivityAndSpectralOnset() {
+        let analyzer = AudioAnalyzer()
+        let noise = feed(analyzer,start: 0,blocks: 1000,amplitude: 0.0005,frequency: 6000)
+        expectLessThan(noise.high,0.0001); expectLessThan(noise.transient,0.0001)
+        let noiseAnalyzer = AudioAnalyzer()
+        let noiseFrames = (0..<48000).map { i in
+            let value = Float((i &* 1664525 &+ 1013904223)%65536)/32768-1
+            return StereoFrame(left: value*0.0007,right: -value*0.0007,hostTime: UInt64(i),sequence: UInt64(i))
+        }
+        noiseFrames.withUnsafeBufferPointer { noiseAnalyzer.append($0) }
+        for _ in 0..<200 {
+            let f = noiseAnalyzer.analyse(sampleRate: 48000,elapsed: 0.008,fresh: true)
+            expectLessThan(f.high+f.bass+f.mid+f.transient,0.0001)
+        }
+        let earlyQuiet = feed(analyzer,start: 384000,blocks: 20,amplitude: 0.025)
+        let quiet = feed(analyzer,start: 391680,blocks: 1980,amplitude: 0.025)
+        expectGreaterThan(quiet.bass,earlyQuiet.bass*1.5)
+        expectGreaterThan(quiet.bass,0.08); expectLessThan(quiet.bass,0.5)
+        expectLessThan(quiet.transient,0.01)
+        let sustained = feed(analyzer,start: 1152000,blocks: 1250,amplitude: 0.25)
+        expectLessThan(sustained.transient,0.02)
+        var hit: Float = 0
+        for b in 0..<8 {
+            let f = feed(analyzer,start: 1632000+b*384,blocks: 1,amplitude: 0.247,air: 0.04)
+            hit = max(hit,f.transient)
+            expectTrue([f.bass,f.mid,f.high,f.transient].allSatisfy { $0.isFinite && (0...1).contains($0) })
+        }
+        expectGreaterThan(hit,0.08)
+        let released = feed(analyzer,start: 1635072,blocks: 125,amplitude: 0)
+        expectLessThan(released.bass,0.006); expectLessThan(released.transient,0.001)
+        let restart = feed(analyzer,start: 2000000,blocks: 6,amplitude: 0.2)
+        expectLessThan(restart.transient,0.01)
+        let fresh = AudioAnalyzer(); let initial = feed(fresh,start: 0,blocks: 6,amplitude: 0.4)
+        expectLessThan(initial.transient,0.01)
+        _ = fresh.analyse(sampleRate: 48000,elapsed: 1,fresh: false)
+        let afterGap = feed(fresh,start: 2304,blocks: 6,amplitude: 0.4)
+        expectLessThan(afterGap.transient,0.01)
+    }
+    func testElapsedReleaseAndMotion() {
+        let a = tone(93.75), b = tone(93.75)
+        _ = a.analyse(sampleRate: 48000,elapsed: 0.05,fresh: true)
+        _ = b.analyse(sampleRate: 48000,elapsed: 0.05,fresh: true)
+        var fa = AudioFeatures(), fb = AudioFeatures()
+        for _ in 0..<60 { fa = a.analyse(sampleRate: 48000,elapsed: 1.0/60,fresh: false) }
+        for _ in 0..<120 { fb = b.analyse(sampleRate: 48000,elapsed: 1.0/120,fresh: false) }
+        expectEqual(fa.bass,fb.bass,accuracy: 0.00001)
+        var x: Float = 0, y: Float = 0, calm: Float = 0
+        for _ in 0..<600 { x = ResponseMotion.advance(x,elapsed: 1.0/60,bass: 0.6,reactivity: 1.5) }
+        for _ in 0..<1200 { y = ResponseMotion.advance(y,elapsed: 1.0/120,bass: 0.6,reactivity: 1.5) }
+        for _ in 0..<600 { calm = ResponseMotion.advance(calm,elapsed: 1.0/60,bass: 0.6,reactivity: 0) }
+        expectEqual(x,y,accuracy: 0.0001); expectEqual(calm,0.65,accuracy: 0.0001)
+        expectEqual(ResponseMotion.advance(0,elapsed: 10,bass: 100,reactivity: 100),0.023,accuracy: 0.00001)
+    }
     func testResolutionCaps() {
         expectEqual(Quality.balanced.scale(width: 3840,height: 2160),0.5)
         expectEqual(Quality.native.scale(width: 3840,height: 2160),1)
@@ -132,5 +234,8 @@ checks.testIndependentMirrorAndCoordinatedSettings()
 try checks.testVersionedSaveAndInvalidData()
 checks.testResolutionCaps()
 try checks.testSceneCompatibilityAndIndependentNewScenes()
-print("8 core checks completed; \(failures) failures")
+try checks.testReactivityMigrationAndRoles()
+checks.testGatedSensitivityAndSpectralOnset()
+checks.testElapsedReleaseAndMotion()
+print("11 core checks completed; \(failures) failures")
 exit(failures == 0 ? 0 : 1)

@@ -40,6 +40,7 @@ public final class SampleHistory {
         left[cursor] = frame.left; right[cursor] = frame.right; times[cursor] = frame.hostTime
         cursor = (cursor + 1) % left.count; count = min(count + 1, left.count)
     }
+    public func reset() { count = 0; cursor = 0; previousSequence = nil }
     public func indexFromEnd(_ offset: Int) -> Int { (cursor - 1 - offset + left.count) % left.count }
 }
 
@@ -54,6 +55,12 @@ public final class AudioAnalyzer {
     private var power = [Float](repeating: 0, count: 1024)
     private var total: UInt64 = 0
     private var previousRMS: Float = 0
+    private var previousMagnitude = [Float](repeating: 0, count: 1024)
+    private var referenceRMS: Float = 0.08
+    private var fluxAverage: Float = 0.04
+    private var analysedTotal: UInt64 = 0
+    private var analysedGaps: UInt64 = 0
+    private var primed = false
     private var feature = AudioFeatures()
     public init() {
         fft = vDSP_create_fftsetup(11, FFTRadix(kFFTRadix2))!
@@ -64,22 +71,36 @@ public final class AudioAnalyzer {
         for frame in frames { history.append(frame); total += 1 }
     }
     public func analyse(sampleRate: Double, elapsed: Double, fresh: Bool) -> AudioFeatures {
-        let dt = Float(min(max(elapsed, 0.001), 0.1))
+        let dt = Float(elapsed.isFinite ? min(max(elapsed, 0.001), 1) : 0.008)
+        let valid = fresh && sampleRate.isFinite && sampleRate > 0
+        if !valid || history.discontinuities != analysedGaps {
+            previousMagnitude = .init(repeating: 0, count: 1024)
+            referenceRMS = 0.08; fluxAverage = 0.04; previousRMS = 0; primed = false
+            analysedGaps = history.discontinuities
+            if !valid { history.reset() }
+        }
+        let newSamples = total != analysedTotal
+        analysedTotal = total
         var square: Float = 0; var peak: Float = 0
         let n = min(history.count, size)
         for i in 0..<n {
             let j = history.indexFromEnd(i); let l = history.left[j]; let r = history.right[j]
             square += (l*l+r*r)*0.5; peak = max(peak, max(abs(l), abs(r)))
         }
-        let rms: Float = fresh && n > 0 ? sqrt(square / Float(n)) : 0
+        let rms: Float = valid && n > 0 ? sqrt(square / Float(n)) : 0
         func follow(_ old: Float, _ value: Float, release: Float = 0.22) -> Float {
             old + (value-old) * (1-exp(-dt / (value > old ? 0.018 : release)))
         }
-        feature.rms = follow(feature.rms, rms); feature.peak = fresh ? peak : 0
-        feature.transient = follow(feature.transient, max(0, rms-previousRMS)*9, release: 0.12)
-        previousRMS = rms
+        feature.rms = follow(feature.rms, rms); feature.peak = valid ? peak : 0
+        // Gate before gain. Quiet noise must not train sensitivity or create hits.
+        let gate = min(1, max(0, (rms-0.0008)/0.0022))
+        if gate > 0.5 && newSamples {
+            referenceRMS += (rms-referenceRMS) * (1-exp(-dt/(rms > referenceRMS ? 3 : 8)))
+        }
+        let gain = min(3, max(0.75, sqrt(0.16/max(referenceRMS,0.018))))
+        let sensitivity = gate * gain
         power.withUnsafeMutableBufferPointer { $0.initialize(repeating: 0) }
-        if fresh && n == size {
+        if valid && n == size {
             for channel in 0..<2 {
                 for i in 0..<size {
                     let j = history.indexFromEnd(size-1-i)
@@ -96,25 +117,38 @@ public final class AudioAnalyzer {
             }
         }
         var bass: Float = 0; var mid: Float = 0; var high: Float = 0
+        var flux: Float = 0; var magnitudeSum: Float = 0
         for i in 1..<1024 {
+            let magnitude = sqrt(power[i])
+            flux += max(0, magnitude-previousMagnitude[i]); magnitudeSum += magnitude
+            if newSamples { previousMagnitude[i] = magnitude }
             let hz = Double(i)*sampleRate/Double(size)
             if hz < 180 { bass += power[i] } else if hz < 2400 { mid += power[i] } else { high += power[i] }
         }
-        feature.bass = follow(feature.bass, min(1, sqrt(bass)*5))
-        feature.mid = follow(feature.mid, min(1, sqrt(mid)*5))
-        feature.high = follow(feature.high, min(1, sqrt(high)*7))
+        // Positive spectral change catches percussion under a sustained loud passage.
+        // Prime a full window after gaps so old history cannot create a restart hit.
+        let fluxRate = flux/max(magnitudeSum,0.005) * min(2,0.008/dt)
+        let spectralRise = max(0,fluxRate-max(0.035,fluxAverage*1.4)) * 4
+        if newSamples && gate > 0.5 { fluxAverage += (fluxRate-fluxAverage)*(1-exp(-dt/0.4)) }
+        let levelRise = max(0,rms-previousRMS)/max(referenceRMS,0.025)*1.8
+        let hit = primed && newSamples ? min(1,max(spectralRise,levelRise)*gate) : 0
+        feature.transient += (hit-feature.transient) * (1-exp(-dt/(hit > feature.transient ? 0.006 : 0.09)))
+        if newSamples { previousRMS = rms; primed = valid && n == size && gate > 0.5 }
+        feature.bass = follow(feature.bass, min(1, sqrt(bass)*5*sensitivity), release: 0.18)
+        feature.mid = follow(feature.mid, min(1, sqrt(mid)*5*sensitivity))
+        feature.high = follow(feature.high, min(1, sqrt(high)*7*sensitivity), release: 0.13)
         for band in 0..<64 {
             let lo = max(1, Int(pow(1000, Double(band)/64)))
             let hi = min(1023, max(lo+1, Int(pow(1000, Double(band+1)/64))))
             var sum: Float = 0
             for i in lo..<hi { sum += power[i] }
-            feature.spectrum[band] = follow(feature.spectrum[band], min(1, sqrt(sum)*7))
+            feature.spectrum[band] = follow(feature.spectrum[band], min(1, sqrt(sum)*7*sensitivity), release: 0.16)
         }
         for i in 0..<512 {
             let offset = (511-i)*3
             let j = history.indexFromEnd(min(offset, max(0,history.count-1)))
-            feature.left[i] = fresh && history.count > 0 ? history.left[j] : 0
-            feature.right[i] = fresh && history.count > 0 ? history.right[j] : 0
+            feature.left[i] = valid && history.count > 0 ? history.left[j] : 0
+            feature.right[i] = valid && history.count > 0 ? history.right[j] : 0
         }
         feature.lastHostTime = history.count > 0 ? history.times[history.indexFromEnd(0)] : 0
         feature.totalFrames = total; feature.discontinuities = history.discontinuities
