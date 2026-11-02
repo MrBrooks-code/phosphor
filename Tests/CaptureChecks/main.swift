@@ -90,4 +90,28 @@ expect(!invalid.calls.contains("proc"), "Validate actual aggregate stereo before
 expect(invalid.calls.suffix(2) == ["destroyAggregate", "destroyTap"], "Clean up after input format rejection")
 let timeout = CaptureFailure(operation: "Start capture", status: 268451843).localizedDescription
 expect(timeout.contains("timed out") && !timeout.contains("retry"), "Do not misdiagnose a server timeout as denied permission")
+
+// Run main-queue completions while the real worker uses injected native calls.
+func waitForCompletion(_ ready: () -> Bool) {
+    let deadline = Date().addingTimeInterval(3)
+    while !ready() && Date() < deadline { RunLoop.current.run(until: Date().addingTimeInterval(0.01)) }
+    expect(ready(), "Worker completion must arrive")
+}
+let engineFixture = Fixture()
+let engine = AudioEngine(hardware: engineFixture.hardware())
+var completed = false
+engine.start(musicOnly: true) { error in expect(error == nil, "Fixture start succeeds"); completed = true }
+waitForCompletion { completed }
+engineFixture.failure = "destroyProc"; completed = false
+engine.stop { error in
+    expect(error != nil, "Return the cleanup error to controls")
+    let status = engine.snapshot().1
+    expect(status.hasPrefix("Capture cleanup incomplete"), "Publish the returned cleanup failure")
+    expect(!status.contains("waiting for Core Audio"), "Do not claim a returned call is pending")
+    completed = true
+}
+waitForCompletion { completed }
+engineFixture.failure = nil; completed = false
+engine.stop { error in expect(error == nil, "Complete retained cleanup"); completed = true }
+waitForCompletion { completed }
 print("\(count) capture lifecycle assertions completed; 0 failures")

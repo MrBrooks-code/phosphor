@@ -130,10 +130,12 @@ package final class AudioCapture {
 
 // Publish immutable feature snapshots. Only the analysis worker reads the capture queue.
 public final class AudioEngine: @unchecked Sendable {
-    private lazy var capture = AudioCapture { [weak self] stage in
+    private let hardware: CaptureHardware
+    private lazy var capture = AudioCapture(hardware: hardware) { [weak self] stage in
         self?.lock.lock(); self?.message = stage + " · waiting for Core Audio"; self?.lock.unlock()
     }
-    public init() {}
+    public init() { hardware = CaptureHardware() }
+    package init(hardware: CaptureHardware) { self.hardware = hardware }
     private let worker = DispatchQueue(label: "Phosphor.analysis", qos: .userInteractive)
     private var timer: DispatchSourceTimer?
     private let lock = NSLock()
@@ -199,7 +201,11 @@ public final class AudioEngine: @unchecked Sendable {
     private func stopWorker() -> String? {
         timer?.cancel(); timer = nil
         lock.lock(); current = AudioFeatures(); lock.unlock()
-        guard capture.stop() else { return capture.cleanupFailure }
+        guard capture.stop() else {
+            let failure = capture.cleanupFailure ?? "Capture cleanup incomplete"
+            lock.lock(); message = failure; lock.unlock()
+            return failure
+        }
         var discard = [StereoFrame](repeating: StereoFrame(), count: 8192)
         while ingress_read(capture.queue, &discard, 8192) > 0 {}
         lock.lock(); current = AudioFeatures(); message = "Capture stopped · no audio source"; lock.unlock()
