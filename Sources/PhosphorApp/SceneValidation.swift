@@ -31,16 +31,18 @@ enum SceneValidation {
         let spectrum = device.makeBuffer(length: 64*4,options: .storageModeShared)!
         let wave = device.makeBuffer(length: 512*8,options: .storageModeShared)!
         var report = "Synthetic native shader checks on \(device.name)\nGPU command duration excludes display pacing.\n"
-        func texture(_ width: Int, _ height: Int, _ format: MTLPixelFormat) -> MTLTexture {
+        func texture(_ width: Int, _ height: Int, _ format: MTLPixelFormat) throws -> MTLTexture {
             let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format,width: width,height: height,mipmapped: false)
-            descriptor.usage = [.renderTarget,.shaderRead]; descriptor.storageMode = .shared
-            return device.makeTexture(descriptor: descriptor)!
+            descriptor.usage = [.renderTarget,.shaderRead]
+            descriptor.storageMode = device.supportsFamily(.apple1) ? .shared : .managed
+            guard let texture = device.makeTexture(descriptor: descriptor) else { throw ValidationError.textureUnavailable }
+            return texture
         }
         for scene in Scene.allCases where scene.shaderID >= 3 {
             var quietPixels: [UInt8] = [], combinedPixels: [UInt8] = []
             for (width,height) in [(640,360),(1920,1080),(3840,2160),(2160,3840)] {
-                let current = texture(width,height,.rgba16Float), previous = texture(width,height,.rgba16Float)
-                let image = texture(width,height,.rgba8Unorm)
+                let current = try texture(width,height,.rgba16Float), previous = try texture(width,height,.rgba16Float)
+                let image = try texture(width,height,.rgba8Unorm)
                 var durations: [Double] = []
                 // Reuse textures and clear feedback for each isolated fixture.
                 for frame in 0..<12 {
@@ -86,6 +88,11 @@ enum SceneValidation {
                     let final = command.makeRenderCommandEncoder(descriptor: pass)!
                     final.setRenderPipelineState(presentPipeline); final.setFragmentTexture(current,index: 0)
                     final.drawPrimitives(type: .triangle,vertexStart: 0,vertexCount: 3); final.endEncoding()
+                    // Make managed GPU writes visible to CPU readback on non-Apple GPUs.
+                    if current.storageMode == .managed && (width == 640 || frame == 1) {
+                        guard let blit = command.makeBlitCommandEncoder() else { throw ValidationError.encoderUnavailable }
+                        blit.synchronize(resource: current); blit.synchronize(resource: image); blit.endEncoding()
+                    }
                     command.commit(); command.waitUntilCompleted()
                     if let error = command.error { throw error }
                     durations.append((command.gpuEndTime-command.gpuStartTime)*1000)
@@ -124,5 +131,5 @@ enum SceneValidation {
         try report.write(to: directory.appendingPathComponent("shader-checks.txt"),atomically: true,encoding: .utf8)
         print(report)
     }
-    enum ValidationError: Error { case noResponse(Scene), invalidPixels(Scene) }
+    enum ValidationError: Error { case noResponse(Scene), invalidPixels(Scene), textureUnavailable, encoderUnavailable }
 }

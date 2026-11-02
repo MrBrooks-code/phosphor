@@ -34,6 +34,8 @@ At 3840 × 2160 the final short-run GPU medians were 0.533 ms Outrun, 0.498 ms C
 
 Capture was stopped in the existing app when first inspected, and this task deliberately leaves capture startup to its separate chat. Every preview and response fixture here is synthetic. No new actual-audio or Apple Music capture acceptance is claimed. The normal build retains capture; the development gallery disables it and labels both the desk and window names. During the original scene validation, no release, merge, or notarization occurred.
 
+Before integration into main, the native checker was hardened to use shared textures on Apple-family GPUs and managed textures with explicit GPU-to-CPU synchronization on other Mac GPUs. Texture allocation failure throws a validation error. The Apple path was exercised again on this M3 Ultra; the managed path could not be exercised on this hardware.
+
 ## Local artifacts
 
 The launchable separate development app is `/Users/brooks/.codex/worktrees/de8f/llamascope/build/Phosphor Scenes.app`. Its gallery is temporary and synthetic. The normal app is built with `scripts/build.sh` when actual capture is desired.
