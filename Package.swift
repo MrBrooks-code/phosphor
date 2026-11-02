@@ -7,7 +7,9 @@ let package = Package(
     targets: [
         .target(name: "AudioIngress", publicHeadersPath: "include", linkerSettings: [.linkedFramework("CoreAudio")]),
         .target(name: "PhosphorCore", dependencies: ["AudioIngress"], linkerSettings: [.linkedFramework("Accelerate")]),
-        .executableTarget(name: "PhosphorApp", dependencies: ["PhosphorCore", "AudioIngress"], resources: [.copy("Resources/Scenes.metal")], swiftSettings: [.swiftLanguageMode(.v5)]),
+        .target(name: "PhosphorCapture", dependencies: ["PhosphorCore", "AudioIngress"], swiftSettings: [.swiftLanguageMode(.v5)]),
+        .executableTarget(name: "PhosphorApp", dependencies: ["PhosphorCore", "PhosphorCapture"], resources: [.copy("Resources/Scenes.metal")], swiftSettings: [.swiftLanguageMode(.v5)]),
+        .executableTarget(name: "CaptureChecks", dependencies: ["PhosphorCapture"], path: "Tests/CaptureChecks", swiftSettings: [.swiftLanguageMode(.v5)]),
         .executableTarget(name: "CoreChecks", dependencies: ["PhosphorCore", "AudioIngress"], path: "Tests/PhosphorCoreTests")
     ]
 )

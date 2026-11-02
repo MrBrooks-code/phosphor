@@ -1,6 +1,7 @@
 import AppKit
 import MetalKit
 import PhosphorCore
+import PhosphorCapture
 
 struct GPUUniforms {
     var resolution: SIMD2<Float>

@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "${0:A:h:h}"
 configuration="${1:-release}"
-swift build -c "$configuration"
+swift build -c "$configuration" --product Phosphor
 product="$(swift build -c "$configuration" --show-bin-path)"
 app="$PWD/build/Phosphor.app"
 if [[ "${2:-}" == "--scene-development" ]]; then
