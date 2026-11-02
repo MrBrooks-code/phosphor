@@ -39,6 +39,8 @@ final class Fixture {
         return value
     }
 }
+// Use the source mode that the control desk supports on this OS.
+let musicOnly = { if #available(macOS 26, *) { return true }; return false }()
 var count = 0
 func expect(_ condition: @autoclosure () -> Bool, _ detail: String) {
     guard condition() else { fatalError(detail) }; count += 1
@@ -50,7 +52,7 @@ for (failure, suffix) in [
 ] {
     let fixture = Fixture(); fixture.failure = failure
     let capture = AudioCapture(hardware: fixture.hardware())
-    do { try capture.start(musicOnly: true); fatalError("Expected \(failure) failure") }
+    do { try capture.start(musicOnly: musicOnly); fatalError("Expected \(failure) failure") }
     catch let error as CaptureFailure { expect(error.status == fixture.error, "Preserve native error") }
     expect(fixture.calls.suffix(suffix.count) == suffix[...], "Release only owned resources after \(failure): \(fixture.calls)")
     let calls = fixture.calls
@@ -59,21 +61,21 @@ for (failure, suffix) in [
 }
 let fixture = Fixture()
 var capture: AudioCapture? = AudioCapture(hardware: fixture.hardware())
-try capture!.start(musicOnly: true)
+try capture!.start(musicOnly: musicOnly)
 fixture.failure = "destroyProc"
 expect(!capture!.stop(), "Report incomplete cleanup")
 expect(!fixture.calls.contains("destroyAggregate"), "Retain aggregate and tap while callback is owned")
-do { try capture!.start(musicOnly: true); fatalError("Do not overlap sessions") } catch {}
+do { try capture!.start(musicOnly: musicOnly); fatalError("Do not overlap sessions") } catch {}
 expect(fixture.calls.filter { $0 == "tap" }.count == 1, "Do not create another tap while cleanup fails")
 fixture.failure = nil
 expect(capture!.stop(), "Cleanup can finish after native boundary recovers")
-try capture!.start(musicOnly: true)
+try capture!.start(musicOnly: musicOnly)
 capture = nil
 expect(fixture.calls.suffix(4) == ["stop", "destroyProc", "destroyAggregate", "destroyTap"], "Deinit releases a live session in order")
 for failure in ["stop", "destroyAggregate", "destroyTap"] {
     let fixture = Fixture()
     let capture = AudioCapture(hardware: fixture.hardware())
-    try capture.start(musicOnly: true)
+    try capture.start(musicOnly: musicOnly)
     fixture.failure = failure
     expect(!capture.stop(), "Report \(failure) failure")
     expect(capture.cleanupFailure != nil, "Retain cleanup diagnostics")
@@ -85,7 +87,7 @@ for failure in ["stop", "destroyAggregate", "destroyTap"] {
 }
 let invalid = Fixture(); invalid.invalidInput = true
 let invalidCapture = AudioCapture(hardware: invalid.hardware())
-do { try invalidCapture.start(musicOnly: true); fatalError("Reject mono input") } catch {}
+do { try invalidCapture.start(musicOnly: musicOnly); fatalError("Reject mono input") } catch {}
 expect(!invalid.calls.contains("proc"), "Validate actual aggregate stereo before callback registration")
 expect(invalid.calls.suffix(2) == ["destroyAggregate", "destroyTap"], "Clean up after input format rejection")
 let timeout = CaptureFailure(operation: "Start capture", status: 268451843).localizedDescription
@@ -100,7 +102,7 @@ func waitForCompletion(_ ready: () -> Bool) {
 let engineFixture = Fixture()
 let engine = AudioEngine(hardware: engineFixture.hardware())
 var completed = false
-engine.start(musicOnly: true) { error in expect(error == nil, "Fixture start succeeds"); completed = true }
+engine.start(musicOnly: musicOnly) { error in expect(error == nil, "Fixture start succeeds"); completed = true }
 waitForCompletion { completed }
 engineFixture.failure = "destroyProc"; completed = false
 engine.stop { error in
