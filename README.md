@@ -8,11 +8,11 @@ Phosphor is a native macOS music visualizer built with SwiftUI, AppKit, Core Aud
 - **Feedback Bloom** feeds its previous image through rotation, flow and decay. Bass changes its shape, mids drive its ribbons, upper frequencies add filaments, and transients light the center.
 - **Vector Tunnel** uses perspective rings, a moving vanishing point, treble spokes and rhythmic accents.
 
-- **Outrun Horizon** places a striped sun above mountain silhouettes, a frequency skyline, and an advancing perspective grid.
-- **Crystal Mandala** builds three counter-rotating faceted crowns with separate bass, mid, and air detail.
-- **Spiral Galaxy** lights four particle arms around a breathing core, with short controlled trails.
-- **Digital Rain** drops procedural glyph streams through two depth layers, with bright heads and spectrum-mapped columns.
-- **Plasma Drift** blends five moving energy sources into calm colored fields and luminous contours.
+- **Outrun Horizon** follows a curving night route through layered terrain toward a compact skyline beneath an eclipsed light source.
+- **Crystal Mandala** forms a solid mechanical iris from overlapping prisms, with band-driven hinges, spectral tips, and selective bevel light.
+- **Spiral Galaxy** layers orbiting star sheets, branching arms, dark dust, and a compact central bulge with short controlled trails.
+- **Digital Rain** groups legible glyph streams into shared wave fronts across three depths, with selective signal events and empty lanes.
+- **Plasma Drift** flows through shaded glass ribbons with thin luminous edges, internal filaments, and dark gaps.
 
 See [scene notes and preview checks](docs/SCENES.md) for the artistic choices, reference sources, and validation limits.
 
@@ -92,9 +92,11 @@ To exercise the actual packaged Metal shaders and export repeatable synthetic pr
 
 This checks finite pixels, response to isolated bands, palettes and zero intensity, exports landscape and portrait PNGs, and measures bounded offscreen GPU work at windowed, 1080p and 4K sizes. It does not establish capture correctness, display pacing, or musical feel.
 
-## Isolated V2 art-direction preview
+## Accepted V2 scene direction
 
-The five derived scenes have an opt-in V2 treatment: a curving night route, a solid crystal iris, a dusty star volume, grouped glyph waves and flowing glass ribbons. [V2 direction and comparison notes](docs/V2-DIRECTION.md) contain the collection critique, musical roles and validation limits. The regular build keeps the delivered scenes.
+The five redesigned scenes are now the normal Phosphor experience. Build and launch `build/Phosphor.app` with the standard command above; existing saved names, IDs, output roles and parameters remain compatible. [V2 direction and comparison notes](docs/V2-DIRECTION.md) contain the collection critique, musical roles and validation limits. V1 is retained only as an explicit comparison-fixture option.
+
+The same accepted scenes can still be built in the isolated review app:
 
 ```sh
 scripts/build.sh release --v2-development

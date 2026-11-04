@@ -1,6 +1,6 @@
 # Phosphor V2: light inside dark space
 
-This is an isolated art-direction preview, pending owner acceptance. It develops original compositions inside Phosphor's existing native renderer. It does not change the production scene defaults, saved names/IDs, capture code, or installed app. The starting point is merged main `a80474a` (PR #5), checked against remote main before work. The capture-startup and repository-policy branches remain separate.
+The owner accepted this direction on November 3, 2026 and authorized making it the main version. The five V2 fields are now the default in normal Phosphor builds. Saved names/IDs, output roles, preferences, Reactivity/Intensity semantics and capture code remain compatible. The original isolated preview started from main `a80474a` (PR #5); the validation history below distinguishes that preview from its later production-default promotion. The capture-startup and repository-policy branches remain separate.
 
 ## Collection critique
 
@@ -33,7 +33,16 @@ Rain retains the existing glyph alphabet, adds a third depth and groups five nei
 
 Plasma becomes flowing glass. Three continuous shear steps warp the domain, then five ribbons overlap with curved cross-section shading, thin pale edges and internal filaments. This is an analytic advection-like construction, not a fluid simulation. Bass changes ribbon tension, mids change shear, air reveals surface lines and hits catch a short portion of an edge. The dark gaps and overlap distinguish it from Feedback Bloom.
 
-## Runnable isolated preview
+## Run the accepted scenes
+
+```sh
+scripts/build.sh
+open build/Phosphor.app
+```
+
+The normal bundle remains `com.mrbrooks.phosphor` with its existing preferences and ordinary Phosphor branding. Finder launch opens the desk with capture stopped. No saved desk is replaced or migrated.
+
+The separate review app remains available with the same accepted scenes:
 
 ```sh
 scripts/build.sh release --v2-development
@@ -46,7 +55,7 @@ The bundle identifier is `com.mrbrooks.phosphor.v2-ae8b`. It has separate prefer
 'build/Phosphor V2.app/Contents/MacOS/Phosphor' --stage-v2 --capture-music --diagnostics
 ```
 
-Do not start a second copy of the V2 app while it is already running. Production Phosphor can remain open. Normal `scripts/build.sh` selects the delivered shader fields, without V2. One renderer, uniform layout and packaged shader source support both versions through a Metal compilation macro. No production preference schema changes are needed.
+Do not start a second copy of the V2 app while it is already running. Production Phosphor can remain open. Normal `scripts/build.sh` selects the accepted V2 fields. The review app differs only in labeling, bundle identity and preferences. One renderer, uniform layout and packaged shader source support the accepted fields plus an explicitly selected V1 comparison baseline through a Metal compilation macro. No production preference schema changes are needed.
 
 The synthetic gallery is an explicit separate launch mode. It disables capture and saves, labels the desk and windows, and never becomes a fallback when real capture is silent:
 
@@ -66,9 +75,9 @@ The motion exporter compiles baseline and V2 separately and uses one shared offs
 
 The existing resource and pixel checker still runs all eight scenes, the Scope trace, isolated bands/hits, palette/time/phase changes, zero and half Intensity, and zero/strong Reactivity. It checks finite nonnegative fields, exposure linearity and response beyond an exposure-only change at 640×360, 1080p, landscape 4K and portrait 4K. Native checks need macOS and Metal; there is no containerizable service or supporting server.
 
-## Validation record — November 3, 2026
+## Initial isolated-preview validation — November 3, 2026
 
-The inspected machine is Apple M3 Ultra / 96 GB / macOS 27.0.1. Release builds of the ordinary app and the separate V2 bundle pass. V2's packaged resource/pipeline validation and strict ad-hoc signature verification pass. The 11 existing CoreChecks pass with zero failures. The final V2 checker completes for all eight scenes and all four sizes; [raw GPU and pixel-check output](V2_GPU_CHECKS.txt) records the checks. The ordinary build's 24 exported PNGs are byte-identical to the untouched baseline's exports, including both 4K orientations. That directly checks that the development switch preserves delivered render output at the fixtures.
+The inspected machine is Apple M3 Ultra / 96 GB / macOS 27.0.1. Release builds of the ordinary app and the separate V2 bundle pass. V2's packaged resource/pipeline validation and strict ad-hoc signature verification pass. The 11 existing CoreChecks pass with zero failures. The final V2 checker completes for all eight scenes and all four sizes; [raw GPU and pixel-check output](V2_GPU_CHECKS.txt) records the checks. Before promotion, the ordinary build's 24 exported PNGs were byte-identical to the untouched V1 baseline, including both 4K orientations. That checked preview isolation at that checkpoint; the normal build now intentionally selects V2.
 
 Final warm offscreen 3840×2160 medians are 0.560 ms Outrun, 1.879 ms Crystal, 4.728 ms Galaxy, 0.547 ms Rain and 0.657 ms Plasma (10 warm samples each). These commands include the feedback clear, scene and presentation passes. The final timing run took place after the other GPU validation process and this task's native preview were stopped. The bounds are fixed: eight eight-plane prism intersections for Crystal and 27 nearby star candidates for Galaxy. There is no per-frame particle allocation, global feedback or unbounded ray march. Galaxy is materially more expensive than the delivered version; these measurements do not establish simultaneous multi-4K capacity or smooth presentation.
 
@@ -76,6 +85,12 @@ The implementation preview captured actual Apple Music-only stereo at 48 kHz wit
 
 Native inspection covered all five V2 fields, a Crystal Ice palette change, unchanged other output settings, Galaxy's Coordinated inheritance, actual Outrun texture mirroring in the Galaxy window, restoration to Independent/Galaxy/Ice, switching Crystal through the delivered Bloom and Tunnel and back, and Rain fullscreen/Escape. Outrun was also switched through half-resolution, native pixels and balanced quality, then restored to balanced. Scope was inspected in the baseline synthetic gallery, which correctly has no invented waveform. The separate fixture checker executes its actual trace pipeline with explicit test points. All eight compositions were inspected before or during development; the final terrain and differential-orbit refinements were inspected natively after relaunch and are represented in the regenerated final GPU fixtures. The portrait fixture caught a cropped Outrun source; its framing was corrected and the full native checker and motion exports were regenerated. The final app was left with capture stopped, and its scene settings retained the balanced review defaults.
 
-Native presentation counters during overlap, focus changes and controls ranged from low single digits into the 20–30 fps range, with occasional higher readings. These are not steady visible frame-rate measurements. First-run permission grant/deny, route changes, older non-Apple managed-texture GPUs, arbitrary drag resizing, sustained multi-display pacing/RSS, latency and broad owner musical-feel acceptance remain open. The known main-branch capture-startup limitation also remains; this preview does not include the separate capture-startup branch. No merge or release is authorized by these checks.
+Native presentation counters during overlap, focus changes and controls ranged from low single digits into the 20–30 fps range, with occasional higher readings. These are not steady visible frame-rate measurements. First-run permission grant/deny, route changes, older non-Apple managed-texture GPUs, arbitrary drag resizing, sustained multi-display pacing/RSS, latency and broad musical-feel acceptance across varied tracks remain open. The known main-branch capture-startup limitation also remains; this preview does not include the separate capture-startup branch. The owner separately authorized merging this direction after trying it; these checks do not establish a notarized release or retire the listed measurement limits.
 
-Final local artifacts are `build/Phosphor V2.app`, `build/v2-previews-final/` (24 PNGs plus raw checks), and `build/v2-motion-final/` (five labeled GIFs, twenty matched PNG pairs and the fixture manifest). Build artifacts remain untracked and reproducible. The app is a local ad-hoc-signed development build, not a notarized release. CodeRabbit's complete-diff review record belongs in the draft PR so that it can name the immutable reviewed head without changing that head.
+Final local artifacts are `build/Phosphor V2.app`, `build/v2-previews-final/` (24 PNGs plus raw checks), and `build/v2-motion-final/` (five labeled GIFs, twenty matched PNG pairs and the fixture manifest). Build artifacts remain untracked and reproducible. The app is a local ad-hoc-signed development build, not a notarized release. CodeRabbit's complete-diff review record belongs in the PR so that it can name the immutable reviewed head without changing that head.
+
+## Production-default promotion — November 3, 2026
+
+After the owner tried all five scenes with live Apple Music, they authorized making V2 the main version and merging PR #6. Normal live rendering and the native checker now use the same default V2 compilation path. The review-bundle flag controls only its label; the old fields require an explicit V1 comparison request. The standard bundle keeps its existing identity and preferences, and the shader geometry is unchanged from the accepted preview.
+
+The normal release build, packaged Metal resource/pipeline check, strict ad-hoc signature verification and all 11 CoreChecks pass. All eight scenes pass the existing native checks at 640×360, 1080p, landscape 4K and portrait 4K. The ordinary app's 24 exported PNGs are byte-identical to the accepted final V2 fixtures, directly exercising the promoted default rather than inferring it from a successful build. Its Info.plist retains `com.mrbrooks.phosphor` / `Phosphor` and has no development flag. The running V2 tryout was left intact. Review evidence for the final integration head is recorded in PR #6.

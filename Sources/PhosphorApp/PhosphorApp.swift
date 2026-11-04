@@ -75,12 +75,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if (ProcessInfo.processInfo.arguments.contains("--stage-response") || ProcessInfo.processInfo.arguments.contains("--stage-v2")) && UserDefaults.standard.data(forKey: preferencesKey) == nil {
             outputs = Scene.allCases.filter { $0.shaderID >= 3 }.map {
-                OutputState(name: $0.rawValue + (SceneRenderer.isV2 ? " · V2 LIVE" : " · LIVE"),scene: $0,palette: $0.suggestedPalette)
+                OutputState(name: $0.rawValue + (SceneRenderer.isV2Development ? " · V2 LIVE" : " · LIVE"),scene: $0,palette: $0.suggestedPalette)
             }
         }
         if previewMode {
             outputs = Scene.allCases.filter { $0.shaderID >= 3 }.map {
-                OutputState(name: $0.rawValue + (SceneRenderer.isV2 ? " · V2 SYNTHETIC" : " · SYNTHETIC"),scene: $0,palette: $0.suggestedPalette)
+                OutputState(name: $0.rawValue + (SceneRenderer.isV2Development ? " · V2 SYNTHETIC" : " · SYNTHETIC"),scene: $0,palette: $0.suggestedPalette)
             }
         }
         screens = NSScreen.screens
@@ -152,7 +152,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                       let leader = self.outputs.first, leader.id != id else { return nil }
                 return self.windows[leader.id]?.renderer
             }
-            let window = OutputWindow(name: output.name + (SceneRenderer.isV2 && !output.name.contains("V2") ? " · V2" : ""), renderer: renderer)
+            let window = OutputWindow(name: output.name + (SceneRenderer.isV2Development && !output.name.contains("V2") ? " · V2" : ""), renderer: renderer)
             window.onClose = { [weak self] in self?.outputClosed(id) }
             window.onExitFullscreen = { [weak self] in self?.reassign(id) }
             windows[id] = window
@@ -223,8 +223,8 @@ struct DeskView: View {
             VStack(alignment: .leading, spacing: 22) {
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading,spacing: 4) {
-                        Text(SceneRenderer.isV2 ? "PHOSPHOR V2" : "PHOSPHOR").font(.system(size: 31, weight: .light, design: .rounded)).tracking(6)
-                        Text(SceneRenderer.isV2 ? "Light inside dark space · development preview" : "Sound takes shape.").foregroundStyle(.secondary)
+                        Text(SceneRenderer.isV2Development ? "PHOSPHOR V2" : "PHOSPHOR").font(.system(size: 31, weight: .light, design: .rounded)).tracking(6)
+                        Text(SceneRenderer.isV2Development ? "Light inside dark space · development preview" : "Sound takes shape.").foregroundStyle(.secondary)
                     }
                     Spacer()
                     Text("CONTROL DESK  /  01").font(.system(.caption, design: .monospaced)).foregroundStyle(.mint)

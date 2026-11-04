@@ -31,12 +31,12 @@ if [[ "${2:-}" == "--response-development" ]]; then
     /usr/libexec/PlistBuddy -c "Set :CFBundleName Phosphor Response" "$app/Contents/Info.plist"
     /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Phosphor Response" "$app/Contents/Info.plist"
 fi
-# V2 uses real capture by default and never reads the production desk.
+# Keep the review app's label and preferences separate from the normal app.
 if [[ "${2:-}" == "--v2-development" ]]; then
     /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.mrbrooks.phosphor.v2-ae8b" "$app/Contents/Info.plist"
     /usr/libexec/PlistBuddy -c "Set :CFBundleName Phosphor V2" "$app/Contents/Info.plist"
     /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Phosphor V2" "$app/Contents/Info.plist"
-    /usr/libexec/PlistBuddy -c "Add :PhosphorSceneV2 bool true" "$app/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c "Add :PhosphorV2Development bool true" "$app/Contents/Info.plist"
 fi
 codesign --force --sign - "$app"
 print "$app"

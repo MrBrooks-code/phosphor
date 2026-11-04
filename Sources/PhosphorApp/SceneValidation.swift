@@ -18,7 +18,7 @@ enum SceneValidation {
     static func run(directory: URL) throws {
         guard let device = SceneRenderer.device else { throw RendererError.unavailable }
         try FileManager.default.createDirectory(at: directory,withIntermediateDirectories: true)
-        let fixture = try SceneFixture(device: device,v2: SceneRenderer.isV2)
+        let fixture = try SceneFixture(device: device)
         var report = "Synthetic native shader checks on \(device.name)\nGPU command duration excludes display pacing.\n"
         for scene in Scene.allCases {
             var quietPixels: [UInt8] = [], combinedPixels: [UInt8] = [], calmPixels: [UInt8] = []
@@ -120,7 +120,7 @@ final class SceneFixture {
     var current: MTLTexture!
     var previous: MTLTexture!
     var image: MTLTexture!
-    init(device: MTLDevice, v2: Bool) throws {
+    init(device: MTLDevice, v2: Bool? = nil) throws {
         self.device = device
         guard let queue = device.makeCommandQueue() else { throw RendererError.unavailable }
         self.queue = queue
