@@ -61,15 +61,20 @@ final class SceneRenderer: NSObject {
         precondition(MemoryLayout<GPUUniforms>.stride == 64)
         super.init()
     }
-    // Read the packaged source for both live rendering and native shader checks.
-    static func shaderLibrary(device: MTLDevice) throws -> MTLLibrary {
+    // Give the isolated review app its own title. All live builds use the accepted scenes.
+    static var isV2Development: Bool { Bundle.main.object(forInfoDictionaryKey: "PhosphorV2Development") as? Bool == true }
+    static var deskTitle: String { isV2Development ? "Phosphor V2 · Control desk" : "Phosphor · Control desk" }
+    // Compile the accepted fields by default. Comparison fixtures can select the V1 baseline.
+    static func shaderLibrary(device: MTLDevice, v2: Bool? = nil) throws -> MTLLibrary {
         let resources: Bundle
         if let url = Bundle.main.resourceURL?.appendingPathComponent("Phosphor_PhosphorApp.bundle"), let bundled = Bundle(url: url) { resources = bundled }
         else if Bundle.main.bundleURL.pathExtension == "app" { throw RendererError.missingShader }
         else { resources = Bundle.module }
         guard let shader = resources.url(forResource: "Scenes", withExtension: "metal") else { throw RendererError.missingShader }
         let source = try String(contentsOf: shader, encoding: .utf8)
-        return try device.makeLibrary(source: source, options: nil)
+        let options = MTLCompileOptions()
+        options.preprocessorMacros = ["PHOSPHOR_V2": NSNumber(value: (v2 ?? true) ? 1 : 0)]
+        return try device.makeLibrary(source: source, options: options)
     }
     func draw(drawable: CAMetalDrawable, time: Double) {
         guard slots.wait(timeout: .now()) == .success else { return }

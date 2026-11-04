@@ -39,9 +39,9 @@ Parameters are saved as a JSON-encoded schema-version-1 `SavedDesk` in the appli
 All app work is local. The build script performs local ad-hoc signing and does not install, publish, notarize or release the app.
 
 
-## Additional scene fields
+## V1 comparison fields
 
-The five additional scene functions use the same 64-byte uniforms and per-output textures. Outrun has three interpolated mountain layers and an analytic perspective grid; Crystal has three faceted radial layers; Galaxy checks two layers of nine nearby polar cells rather than an unbounded particle list; Rain evaluates one glyph in each of two stream layers; Plasma sums five Gaussian sources. There are no per-frame spawns, new textures, new capture paths, or global mutable scene state. Radial scenes scale to the shorter window dimension so portrait windows keep circular geometry. Rain uses logical cells rather than screen pixels, so resizing does not stretch glyph proportions.
+The five original additional scene functions remain as the explicit V1 comparison baseline and use the same 64-byte uniforms and per-output textures. Outrun has three interpolated mountain layers and an analytic perspective grid; Crystal has three faceted radial layers; Galaxy checks two layers of nine nearby polar cells rather than an unbounded particle list; Rain evaluates one glyph in each of two stream layers; Plasma sums five Gaussian sources. There are no per-frame spawns, new textures, new capture paths, or global mutable scene state. Radial scenes scale to the shorter window dimension so portrait windows keep circular geometry. Rain uses logical cells rather than screen pixels, so resizing does not stretch glyph proportions.
 
 The existing analyzer supplies attack/release envelopes. Geometry responds to those bounded features; time does not get multiplied by the current band value. Outrun uses the existing integrated travel field. Galaxy uses the output's previous image only as a short decaying maximum, so highlights do not accumulate into a bright feedback field. Other new scenes redraw analytic geometry directly; persistence changes only Galaxy's trails among the five additions. The generic persistence control remains available for compatibility when switching scenes.
 
@@ -54,3 +54,9 @@ The existing analyzer supplies attack/release envelopes. Geometry responds to th
 The shader applies bounded Reactivity to the audio features and spectral reads, independently of Intensity. Scope's actual trace retains 35% excursion at zero. `ResponseMotion` integrates a bounded bass contribution in seconds and wraps complete travel cycles to retain precision; neither frame count nor current energy multiplies absolute time. Outrun and Tunnel use that travel. Rain adds a bounded bass offset to continuous stream positions. New scene accents remain local; there is no audio multiplier on the whole frame. Zero Intensity also extinguishes retained feedback and the original scene backgrounds.
 
 `--response-development` packages a distinct actual-capture app. It does not set `PhosphorSyntheticGallery`. `--stage-response` only initializes and opens output configurations; real audio remains the only feature source unless the operator explicitly selects the separately labeled synthetic gallery. No callback, capture lifecycle, or system audio route changes belong to this follow-up.
+
+## Accepted V2 default
+
+Normal `SceneRenderer.shaderLibrary` calls compile the accepted V2 fields, including unbundled SwiftPM launches. The packaged build does not need a feature flag. The isolated `--v2-development` bundle sets `PhosphorV2Development` only to select its review label and separate identity/preferences; it renders the same accepted fields.
+
+The native checker uses the same default shader-library selection as live rendering. Only explicit comparison fixtures pass `v2: false` to compile the original five fields. The motion exporter compiles V1 and V2 separately through this one library/renderer contract. Scope, Bloom and Tunnel use their existing implementations in both variants. Scene IDs, the 64-byte uniform layout, feedback ownership, quality settings and saved-desk schema remain unchanged. See [scene direction and validation](V2-DIRECTION.md).

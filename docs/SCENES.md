@@ -1,6 +1,8 @@
-# Five Llamascope scenes
+# Scene history and the accepted V2 default
 
-These additions extend the native prototype introduced by PR #2. The scene expansion keeps capture-start and AGENTS.md policy work separate.
+The normal app now uses the accepted [V2 scene direction](V2-DIRECTION.md) for the five redesigned scenes. The sections below record the original V1 expansion and its validation history; V1 remains available only in explicit comparison fixtures.
+
+The original additions extended the native prototype introduced by PR #2. Capture-start and AGENTS.md policy work remain separate.
 
 ## Composition and musical roles
 

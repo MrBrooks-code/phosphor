@@ -11,6 +11,9 @@ fi
 if [[ "${2:-}" == "--response-development" ]]; then
     app="$PWD/build/Phosphor Response.app"
 fi
+if [[ "${2:-}" == "--v2-development" ]]; then
+    app="$PWD/build/Phosphor V2.app"
+fi
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$product/Phosphor" "$app/Contents/MacOS/Phosphor"
 cp -R "$product/Phosphor_PhosphorApp.bundle" "$app/Contents/Resources/"
@@ -27,6 +30,13 @@ if [[ "${2:-}" == "--response-development" ]]; then
     /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.mrbrooks.phosphor.response-2d5d" "$app/Contents/Info.plist"
     /usr/libexec/PlistBuddy -c "Set :CFBundleName Phosphor Response" "$app/Contents/Info.plist"
     /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Phosphor Response" "$app/Contents/Info.plist"
+fi
+# Keep the review app's label and preferences separate from the normal app.
+if [[ "${2:-}" == "--v2-development" ]]; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.mrbrooks.phosphor.v2-ae8b" "$app/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c "Set :CFBundleName Phosphor V2" "$app/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Phosphor V2" "$app/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c "Add :PhosphorV2Development bool true" "$app/Contents/Info.plist"
 fi
 codesign --force --sign - "$app"
 print "$app"
