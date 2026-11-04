@@ -204,11 +204,13 @@ float3 outrunV2(float2 p, thread const Uniforms &u, device const float *spectrum
     float y=p.y-horizon, camera=.045*sin(u.time*.035+u.phase);
     float3 dark=ink(0,u.palette), light=ink(1,u.palette);
     float3 c=dark*(.008+.07*exp(-abs(y)*5));
-    float2 sun=p-float2(-.52-camera,-.34);
-    float r=length(sun), disc=1-smoothstep(.245-px,.245+px,r);
-    float eclipse=smoothstep(.226-px,.226+px,length(sun-float2(.043,-.025)));
+    float aspect=u.resolution.x/u.resolution.y;
+    float radius=min(.245,aspect*.3);
+    float2 sun=p-float2(-min(.52,aspect*.43)-camera*.4,-.34);
+    float r=length(sun), disc=1-smoothstep(radius-px,radius+px,r);
+    float eclipse=smoothstep(radius*.923-px,radius*.923+px,length(sun-radius*float2(.176,-.102)));
     c+=mix(dark,light,.65)*disc*(.10+.52*eclipse);
-    c+=light*edgeLight(r-.245,px*1.3)*.22;
+    c+=light*edgeLight(r-radius,px*1.3)*.22;
     c+=dark*exp(-r*r*9)*.07;
     // Far ridges move less than the near silhouettes.
     for(int layer=0;layer<3;layer++) {

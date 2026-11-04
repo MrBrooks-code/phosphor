@@ -15,10 +15,10 @@ Phosphor Scope zero reactivity: 34194 channels changed from combined.
 Phosphor Scope silence at zero reactivity: 29174 channels changed from combined.
 Phosphor Scope strong reactivity: 47556 channels changed from combined.
 Phosphor Scope half intensity: 26036 channels changed from combined.
-Phosphor Scope 640x360: median 0.056 ms, max 0.177 ms GPU (14 warm samples)
-Phosphor Scope 1920x1080: median 0.081 ms, max 0.091 ms GPU (10 warm samples)
-Phosphor Scope 3840x2160: median 0.248 ms, max 0.259 ms GPU (10 warm samples)
-Phosphor Scope 2160x3840: median 0.160 ms, max 0.176 ms GPU (10 warm samples)
+Phosphor Scope 640x360: median 0.074 ms, max 0.120 ms GPU (14 warm samples)
+Phosphor Scope 1920x1080: median 0.108 ms, max 0.114 ms GPU (10 warm samples)
+Phosphor Scope 3840x2160: median 0.251 ms, max 0.294 ms GPU (10 warm samples)
+Phosphor Scope 2160x3840: median 0.251 ms, max 0.259 ms GPU (10 warm samples)
 Feedback Bloom combined: 154023 channels changed from silence.
 Feedback Bloom bass: 32611 channels changed from silence.
 Feedback Bloom mid: 29667 channels changed from silence.
@@ -34,10 +34,10 @@ Feedback Bloom zero reactivity: 154023 channels changed from combined.
 Feedback Bloom silence at zero reactivity: 154023 channels changed from combined.
 Feedback Bloom strong reactivity: 165921 channels changed from combined.
 Feedback Bloom half intensity: 120718 channels changed from combined.
-Feedback Bloom 640x360: median 0.056 ms, max 0.257 ms GPU (14 warm samples)
-Feedback Bloom 1920x1080: median 0.127 ms, max 0.130 ms GPU (10 warm samples)
-Feedback Bloom 3840x2160: median 0.230 ms, max 0.255 ms GPU (10 warm samples)
-Feedback Bloom 2160x3840: median 0.217 ms, max 0.386 ms GPU (10 warm samples)
+Feedback Bloom 640x360: median 0.061 ms, max 0.564 ms GPU (14 warm samples)
+Feedback Bloom 1920x1080: median 0.110 ms, max 0.313 ms GPU (10 warm samples)
+Feedback Bloom 3840x2160: median 0.349 ms, max 0.733 ms GPU (10 warm samples)
+Feedback Bloom 2160x3840: median 0.218 ms, max 0.242 ms GPU (10 warm samples)
 Vector Tunnel combined: 370029 channels changed from silence.
 Vector Tunnel bass: 439157 channels changed from silence.
 Vector Tunnel mid: 281424 channels changed from silence.
@@ -53,29 +53,29 @@ Vector Tunnel zero reactivity: 370029 channels changed from combined.
 Vector Tunnel silence at zero reactivity: 370029 channels changed from combined.
 Vector Tunnel strong reactivity: 396966 channels changed from combined.
 Vector Tunnel half intensity: 226459 channels changed from combined.
-Vector Tunnel 640x360: median 0.065 ms, max 0.069 ms GPU (14 warm samples)
-Vector Tunnel 1920x1080: median 0.174 ms, max 0.182 ms GPU (10 warm samples)
-Vector Tunnel 3840x2160: median 0.629 ms, max 0.742 ms GPU (10 warm samples)
-Vector Tunnel 2160x3840: median 0.627 ms, max 0.640 ms GPU (10 warm samples)
+Vector Tunnel 640x360: median 0.065 ms, max 0.308 ms GPU (14 warm samples)
+Vector Tunnel 1920x1080: median 0.159 ms, max 0.162 ms GPU (10 warm samples)
+Vector Tunnel 3840x2160: median 0.498 ms, max 0.535 ms GPU (10 warm samples)
+Vector Tunnel 2160x3840: median 0.498 ms, max 0.543 ms GPU (10 warm samples)
 Outrun Horizon combined: 2241 channels changed from silence.
 Outrun Horizon bass: 2378 channels changed from silence.
 Outrun Horizon mid: 1165 channels changed from silence.
 Outrun Horizon high: 2055 channels changed from silence.
 Outrun Horizon hit: 438 channels changed from silence.
-Outrun Horizon zero intensity: 363230 channels changed from silence.
-Outrun Horizon alternate palette 1: 224992 channels changed from combined.
-Outrun Horizon time: 2326 channels changed from combined.
-Outrun Horizon phase: 10297 channels changed from combined.
-Outrun Horizon alternate palette 2: 452756 channels changed from combined.
-Outrun Horizon alternate palette 3: 359307 channels changed from combined.
+Outrun Horizon zero intensity: 363165 channels changed from silence.
+Outrun Horizon alternate palette 1: 225009 channels changed from combined.
+Outrun Horizon time: 1562 channels changed from combined.
+Outrun Horizon phase: 8998 channels changed from combined.
+Outrun Horizon alternate palette 2: 452739 channels changed from combined.
+Outrun Horizon alternate palette 3: 359225 channels changed from combined.
 Outrun Horizon zero reactivity: 2241 channels changed from combined.
 Outrun Horizon silence at zero reactivity: 2241 channels changed from combined.
 Outrun Horizon strong reactivity: 2434 channels changed from combined.
-Outrun Horizon half intensity: 227152 channels changed from combined.
-Outrun Horizon 640x360: median 0.066 ms, max 0.070 ms GPU (14 warm samples)
-Outrun Horizon 1920x1080: median 0.148 ms, max 0.158 ms GPU (10 warm samples)
-Outrun Horizon 3840x2160: median 0.501 ms, max 0.515 ms GPU (10 warm samples)
-Outrun Horizon 2160x3840: median 0.559 ms, max 0.770 ms GPU (10 warm samples)
+Outrun Horizon half intensity: 227178 channels changed from combined.
+Outrun Horizon 640x360: median 0.069 ms, max 0.171 ms GPU (14 warm samples)
+Outrun Horizon 1920x1080: median 0.150 ms, max 0.153 ms GPU (10 warm samples)
+Outrun Horizon 3840x2160: median 0.560 ms, max 0.574 ms GPU (10 warm samples)
+Outrun Horizon 2160x3840: median 0.460 ms, max 0.527 ms GPU (10 warm samples)
 Crystal Mandala combined: 24826 channels changed from silence.
 Crystal Mandala bass: 30689 channels changed from silence.
 Crystal Mandala mid: 64418 channels changed from silence.
@@ -91,10 +91,10 @@ Crystal Mandala zero reactivity: 24826 channels changed from combined.
 Crystal Mandala silence at zero reactivity: 24826 channels changed from combined.
 Crystal Mandala strong reactivity: 26357 channels changed from combined.
 Crystal Mandala half intensity: 117428 channels changed from combined.
-Crystal Mandala 640x360: median 0.146 ms, max 1.931 ms GPU (14 warm samples)
-Crystal Mandala 1920x1080: median 0.668 ms, max 0.683 ms GPU (10 warm samples)
-Crystal Mandala 3840x2160: median 1.966 ms, max 2.193 ms GPU (10 warm samples)
-Crystal Mandala 2160x3840: median 1.889 ms, max 1.973 ms GPU (10 warm samples)
+Crystal Mandala 640x360: median 0.130 ms, max 0.196 ms GPU (14 warm samples)
+Crystal Mandala 1920x1080: median 0.529 ms, max 0.560 ms GPU (10 warm samples)
+Crystal Mandala 3840x2160: median 1.879 ms, max 1.971 ms GPU (10 warm samples)
+Crystal Mandala 2160x3840: median 1.887 ms, max 1.988 ms GPU (10 warm samples)
 Spiral Galaxy combined: 88670 channels changed from silence.
 Spiral Galaxy bass: 96366 channels changed from silence.
 Spiral Galaxy mid: 34283 channels changed from silence.
@@ -110,10 +110,10 @@ Spiral Galaxy zero reactivity: 88670 channels changed from combined.
 Spiral Galaxy silence at zero reactivity: 88670 channels changed from combined.
 Spiral Galaxy strong reactivity: 111210 channels changed from combined.
 Spiral Galaxy half intensity: 99843 channels changed from combined.
-Spiral Galaxy 640x360: median 0.252 ms, max 0.263 ms GPU (14 warm samples)
-Spiral Galaxy 1920x1080: median 1.252 ms, max 1.274 ms GPU (10 warm samples)
-Spiral Galaxy 3840x2160: median 4.680 ms, max 4.929 ms GPU (10 warm samples)
-Spiral Galaxy 2160x3840: median 4.748 ms, max 5.062 ms GPU (10 warm samples)
+Spiral Galaxy 640x360: median 0.251 ms, max 0.263 ms GPU (14 warm samples)
+Spiral Galaxy 1920x1080: median 1.253 ms, max 1.368 ms GPU (10 warm samples)
+Spiral Galaxy 3840x2160: median 4.728 ms, max 4.899 ms GPU (10 warm samples)
+Spiral Galaxy 2160x3840: median 4.750 ms, max 4.890 ms GPU (10 warm samples)
 Digital Rain combined: 31625 channels changed from silence.
 Digital Rain bass: 18195 channels changed from silence.
 Digital Rain mid: 7103 channels changed from silence.
@@ -129,10 +129,10 @@ Digital Rain zero reactivity: 31625 channels changed from combined.
 Digital Rain silence at zero reactivity: 31625 channels changed from combined.
 Digital Rain strong reactivity: 50022 channels changed from combined.
 Digital Rain half intensity: 21809 channels changed from combined.
-Digital Rain 640x360: median 0.070 ms, max 0.078 ms GPU (14 warm samples)
-Digital Rain 1920x1080: median 0.179 ms, max 0.189 ms GPU (10 warm samples)
-Digital Rain 3840x2160: median 0.544 ms, max 0.574 ms GPU (10 warm samples)
-Digital Rain 2160x3840: median 0.536 ms, max 0.582 ms GPU (10 warm samples)
+Digital Rain 640x360: median 0.069 ms, max 0.258 ms GPU (14 warm samples)
+Digital Rain 1920x1080: median 0.179 ms, max 0.180 ms GPU (10 warm samples)
+Digital Rain 3840x2160: median 0.547 ms, max 0.571 ms GPU (10 warm samples)
+Digital Rain 2160x3840: median 0.535 ms, max 0.545 ms GPU (10 warm samples)
 Plasma Drift combined: 116702 channels changed from silence.
 Plasma Drift bass: 183668 channels changed from silence.
 Plasma Drift mid: 267991 channels changed from silence.
@@ -148,7 +148,7 @@ Plasma Drift zero reactivity: 116702 channels changed from combined.
 Plasma Drift silence at zero reactivity: 116702 channels changed from combined.
 Plasma Drift strong reactivity: 125468 channels changed from combined.
 Plasma Drift half intensity: 483455 channels changed from combined.
-Plasma Drift 640x360: median 0.073 ms, max 0.077 ms GPU (14 warm samples)
-Plasma Drift 1920x1080: median 0.202 ms, max 0.206 ms GPU (10 warm samples)
-Plasma Drift 3840x2160: median 0.655 ms, max 0.684 ms GPU (10 warm samples)
-Plasma Drift 2160x3840: median 0.653 ms, max 0.678 ms GPU (10 warm samples)
+Plasma Drift 640x360: median 0.073 ms, max 0.153 ms GPU (14 warm samples)
+Plasma Drift 1920x1080: median 0.202 ms, max 0.204 ms GPU (10 warm samples)
+Plasma Drift 3840x2160: median 0.657 ms, max 0.692 ms GPU (10 warm samples)
+Plasma Drift 2160x3840: median 0.655 ms, max 0.684 ms GPU (10 warm samples)
