@@ -197,6 +197,226 @@ float3 plasmaScene(float2 p, thread const Uniforms &u) {
     return c*u.intensity;
 }
 
+#if PHOSPHOR_V2
+// The route bends through dark terrain. Only road markers use integrated travel.
+float3 outrunV2(float2 p, thread const Uniforms &u, device const float *spectrum) {
+    float px=2/u.resolution.y, horizon=.045+.009*sin(u.time*.045+u.phase);
+    float y=p.y-horizon, camera=.045*sin(u.time*.035+u.phase);
+    float3 dark=ink(0,u.palette), light=ink(1,u.palette);
+    float3 c=dark*(.008+.07*exp(-abs(y)*5));
+    float2 sun=p-float2(-.52-camera,-.34);
+    float r=length(sun), disc=1-smoothstep(.245-px,.245+px,r);
+    float eclipse=smoothstep(.226-px,.226+px,length(sun-float2(.043,-.025)));
+    c+=mix(dark,light,.65)*disc*(.10+.52*eclipse);
+    c+=light*edgeLight(r-.245,px*1.3)*.22;
+    c+=dark*exp(-r*r*9)*.07;
+    // Far ridges move less than the near silhouettes.
+    for(int layer=0;layer<3;layer++) {
+        float k=float(layer), x=p.x*(3+k*1.7)+camera*(.3+k*.5);
+        float ridge=horizon-.035-(.09+k*.033)*mountain(x,34+k)-.035*sin(x*.8+k);
+        float mask=smoothstep(ridge-px,ridge+px,p.y);
+        c=mix(c,dark*(.048-k*.011),mask);
+        c+=dark*edgeLight(p.y-ridge,px*1.2)*(.10-k*.022);
+    }
+    float cityX=p.x+.1+camera*.25, col=floor(cityX*37);
+    float band=response(spectrum[min(uint(fract(col*.071+2)*64),63u)],u.reactivity);
+    float cluster=exp(-cityX*cityX*4);
+    float height=(.025+.12*pow(hash21(float2(col,6)),3)+band*.055)*cluster;
+    float tower=step(.23,fract(cityX*37))*step(horizon-height,p.y)*step(p.y,horizon);
+    c=mix(c,dark*.012,tower);
+    c+=light*tower*step(.88,fract(p.y*310))*step(.67,fract(cityX*170))*(.14+u.mid*.16);
+    c+=light*edgeLight(p.y-horizon+height,px)*tower*(.10+u.high*.2);
+    if(y>0) {
+        float z=.55/max(y,.002), worldX=p.x*z+camera;
+        float bend=.78*sin(z*.22)+.22*sin(z*.51);
+        float road=worldX-bend, halfWidth=.66;
+        float distanceToRoad=abs(road)-halfWidth;
+        float fog=1-exp(-y*7), roadMask=1-smoothstep(-px*z,px*z,distanceToRoad);
+        float strata=sin(worldX*2.5+z*.55)+.35*sin(worldX*6-z*.31);
+        float slope=cos(worldX*2.5+z*.55)*.6+.3*cos(worldX*6-z*.31);
+        float terraces=abs(fract(strata*2.2)-.5);
+        float contour=1-smoothstep(.015,.015+max(fwidth(strata)*2.2,.002),terraces);
+        float terrainLight=.028+.065*max(0.,slope)+contour*.025;
+        c=dark*terrainLight*fog;
+        c=mix(c,dark*(.018+.036*exp(-road*road*4)),roadMask);
+        float rails=edgeLight(distanceToRoad/z,px*.85)*fog;
+        float markers=pow(.5+.5*cos((z-u.travel*40)*6.283185/2),24);
+        c+=mix(dark,light,.62)*rails*(.32+.23*markers+u.transient*markers*.9);
+        float centerLine=edgeLight(road/z,px*.7)*step(.54,fract((z-u.travel*40)*.5));
+        c+=light*centerLine*fog*.13;
+        float shoulder=edgeLight((abs(road)-.84)/z,px)*markers*fog;
+        c+=dark*shoulder*(.12+u.bass*.3);
+        float reflection=exp(-pow((road+.28)/.21,2))*exp(-y*7)*roadMask;
+        c+=light*reflection*(.11+u.bass*.07);
+        // Low cliffs frame the route without adding objects to its silhouette.
+        float cliff=horizon+.15+.10*sin(p.x*2.6+camera)-.23*pow(abs(p.x),1.3);
+        float cliffMask=smoothstep(cliff-px,cliff+px,p.y)*smoothstep(.9,1.7,abs(p.x));
+        c=mix(c,dark*.009,cliffMask);
+        c+=dark*edgeLight(p.y-cliff,px*1.2)*smoothstep(.9,1.7,abs(p.x))*.12;
+        c+=dark*exp(-y*35)*.09;
+    }
+    return c*u.intensity;
+}
+float3 rotateX(float3 p,float a) { p.yz=turn(p.yz,a); return p; }
+float3 rotateY(float3 p,float a) { p.xz=turn(p.xz,a); return p; }
+float3 rotateZ(float3 p,float a) { p.xy=turn(p.xy,a); return p; }
+// Clip a ray against eight planes. The nearest visible face owns each pixel.
+float octahedron(float3 ro,float3 rd,thread float3 &normal) {
+    float nearT=0, farT=100;
+    for(int face=0;face<8;face++) {
+        float3 n=float3((face&1) ? 1.:-1.,(face&2) ? 1.:-1.,(face&4) ? 1.:-1.);
+        float denom=dot(n,rd), room=1-dot(n,ro);
+        if(abs(denom)<.000001) { if(room<0) return -1; }
+        else {
+            float t=room/denom;
+            if(denom<0 && t>nearT) { nearT=t; normal=n; }
+            if(denom>0) farT=min(farT,t);
+        }
+    }
+    return nearT<farT && farT>0 ? nearT:-1;
+}
+// Eight solid prisms form a mechanical iris with a clear central opening.
+float3 crystalV2(float2 p, thread const Uniforms &u, device const float *spectrum) {
+    float3 c=ink(0,u.palette)*.006;
+    float tilt=.32+.12*sin(u.time*.07+u.phase), spin=u.time*.035+u.phase*.12;
+    float3 ro=rotateY(float3(0,0,3.4),tilt);
+    float3 rd=rotateY(normalize(float3(p.x,-p.y,-3)),tilt);
+    float nearest=100;
+    for(int i=0;i<8;i++) {
+        float a=float(i)*.785398+spin;
+        float energy=response(spectrum[i*7],u.reactivity);
+        float radius=.53+u.bass*.035;
+        float3 center=float3(cos(a)*radius,sin(a)*radius,.08*sin(a*2));
+        float fold=.3+.14*sin(u.time*.11+float(i)*.4)+u.mid*.16;
+        float3 scale=float3(.255,.48+energy*.035,.22);
+        float3 localRO=rotateX(rotateZ(ro-center,-a+1.570796),fold)/scale;
+        float3 localRD=rotateX(rotateZ(rd,-a+1.570796),fold)/scale;
+        float3 normal=0; float hit=octahedron(localRO,localRD,normal);
+        if(hit>0 && hit<nearest) {
+            nearest=hit;
+            float3 point=localRO+localRD*hit;
+            float3 n=normalize(rotateZ(rotateX(normal/scale,-fold),a-1.570796));
+            float diffuse=max(0.,dot(n,normalize(float3(-.6,.8,1.2))));
+            float spec=pow(max(0.,dot(reflect(-normalize(float3(-.6,.8,1.2)),n),-rd)),32);
+            float bevel=exp(-min(abs(point.x),min(abs(point.y),abs(point.z)))*170);
+            float facet=.045+diffuse*.42;
+            float engraving=pow(.5+.5*cos((point.y+point.z*.3)*95),36)*.015;
+            float3 tint=ink(clamp(.35+n.y*.4,0.,1.),u.palette);
+            float select=.5+.5*sin(float(i)*2.4+u.time*.23);
+            c=tint*(facet+engraving)+mix(tint,float3(1),.55)*(spec*.48+bevel*(.12+u.high*.14));
+            c+=ink(1,u.palette)*bevel*pow(select,8)*u.transient*.75;
+        }
+    }
+    float r=length(p);
+    if(nearest==100) c+=ink(.6,u.palette)*exp(-r*14)*(.035+u.bass*.025);
+    return c*u.intensity;
+}
+float spiralArm(float2 q,float clock) {
+    float r=length(q), a=atan2(q.y,q.x);
+    float phase=a-2.65*log(r+.13)-clock;
+    float primary=pow(.5+.5*cos(phase*3),12);
+    float branch=pow(.5+.5*cos(phase*3+1.1+sin(r*8)*.5),22)*.32;
+    return (primary+branch)*(1-smoothstep(.9,1.65,r))*smoothstep(.08,.21,r);
+}
+// Three star sheets and dark dust lanes make an inclined, asymmetric volume.
+float3 galaxyV2(float2 p, thread const Uniforms &u) {
+    float3 c=0; float px=2/u.resolution.y;
+    float clock=u.time*.018+u.phase*.13;
+    float2 parallax=float2(sin(u.time*.045+u.phase),cos(u.time*.037))*.018;
+    for(int layer=0;layer<3;layer++) {
+        float k=float(layer);
+        float2 q=turn(p+parallax*(k-1),-.35); q.y/=.58+k*.055;
+        q/=(.90+k*.12)*(1+u.bass*.018);
+        q=turn(q,-clock*.3/(.5+length(q)));
+        float r=length(q), arm=spiralArm(q,clock+u.mid*.025);
+        float dust=.5+.5*sin(q.x*26+sin(q.y*17)*1.6+clock);
+        float opacity=mix(.22,1.,smoothstep(.3,.72,dust));
+        c+=ink(.18+k*.12,u.palette)*arm*exp(-r*1.4)*opacity*.07;
+        float cells=37+k*17;
+        float2 grid=q*cells, origin=floor(grid);
+        for(int x=-1;x<=1;x++) for(int y=-1;y<=1;y++) {
+            float2 id=origin+float2(x,y), h=float2(hash21(id+k*31),hash21(id+17+k*37));
+            float2 point=(id+h)/cells;
+            float density=spiralArm(point,clock+u.mid*.025);
+            float2 d=(id+h-grid)/cells;
+            float size=max(px*.65,.0013)*(.45+h.x*1.3);
+            float star=exp(-dot(d,d)/(size*size));
+            float cluster=.5+.5*sin(point.x*11+point.y*7);
+            float event=u.transient*pow(cluster,12)*step(.7,h.x);
+            float band=layer==0 ? u.bass:(layer==1 ? u.mid:u.high);
+            c+=mix(ink(h.x,u.palette),float3(.9,.91,.86),h.x*.35)*star*density*opacity*(.30+band*.7+event)*exp(-length(point)*.9);
+        }
+    }
+    float2 core=turn(p,-.35); core.y/=.65;
+    float r=length(core);
+    float bulge=exp(-r*r*53)*(.34+u.bass*.12);
+    float dustLane=smoothstep(.012,.06,abs(core.y+.025*sin(core.x*18)));
+    c+=mix(ink(1,u.palette),float3(1,.87,.69),.38)*bulge*(.26+.74*dustLane);
+    c+=ink(.9,u.palette)*exp(-r*r*800)*.33;
+    return c*u.intensity;
+}
+// Shared wave fronts group the streams. Empty lanes remain part of the composition.
+float3 rainV2(float2 p, thread const Uniforms &u, device const float *spectrum) {
+    float3 c=0;
+    for(int layer=0;layer<3;layer++) {
+        float k=float(layer), size=.026+k*.022;
+        float wave=sin(p.x*2.2-u.time*.16+u.phase);
+        float2 q=p+float2(sin(p.y*1.2+u.time*.1)*u.bass*.012*(k+1),0);
+        float2 g=(q+float2(7,3))/float2(size,size*1.65);
+        float col=floor(g.x), row=floor(g.y), group=floor(col/5);
+        float seed=hash21(float2(col,21+layer)), groupSeed=hash21(float2(group,3+layer));
+        float band=response(spectrum[min(uint(fract(group*.117+1)*64),63u)],u.reactivity);
+        float period=60, speed=2.3+k*.8;
+        float head=u.time*speed+groupSeed*period+wave*3+seed*3+u.phase*4;
+        float age=fract((head-row)/period)*period;
+        float tail=7+seed*9+band*7;
+        float lane=step(.18,seed)*step(groupSeed,.32+band*.30);
+        float crest=exp(-pow(p.y-wave*.38,2)*18);
+        float event=crest*u.transient*step(.35,groupSeed);
+        float fade=pow(max(0.,1-age/tail),1.8)*max(lane,event);
+        float tick=floor(u.time*1.8+groupSeed*7);
+        float symbol=hash21(float2(col*7+row,tick));
+        float mask=glyph(fract(g),symbol), headLight=exp(-age*1.4);
+        float3 tint=mix(ink(.05,u.palette),mix(ink(1,u.palette),float3(1),.32),headLight);
+        c+=tint*mask*fade*(.21+k*.23+headLight*.65+u.high*step(.86,seed)*.4);
+    }
+    return c*u.intensity;
+}
+// Repeated shear preserves continuous flow. Five translucent glass ribbons overlap.
+float3 plasmaV2(float2 p, thread const Uniforms &u) {
+    float t=u.time*.09+u.phase, tension=.15+u.bass*.025;
+    float2 q=turn(p,-.25);
+    for(int i=0;i<3;i++) {
+        float k=float(i);
+        q.x+=sin(q.y*(1.8+k*.4)+t*(.4+k*.1))*(.18+u.mid*.055);
+        q.y+=sin(q.x*(1.4+k*.35)-t*.5+k)*.19;
+    }
+    float3 c=ink(0,u.palette)*.006;
+    for(int i=0;i<5;i++) {
+        float k=float(i), center=(k-2)*.38+.10*sin(q.x*1.3+t*.3+k);
+        float d=(q.y-center)/tension, a=abs(d);
+        float mask=1-smoothstep(.95,1.02,a);
+        float face=sqrt(max(0.,1-d*d));
+        float folds=.5+.5*sin(d*8+q.x*1.4-t*.5+k);
+        float edge=exp(-abs(a-.93)*65);
+        float spec=pow(max(0.,face*.75+d*.55),18);
+        float3 tint=ink(.18+.13*k,u.palette);
+        float3 sheet=tint*(.055+.18*face+.045*folds);
+        sheet+=mix(tint,float3(1,.96,.88),.55)*(spec*.48+edge*(.17+u.high*.09));
+        float filament=pow(.5+.5*cos(d*47+q.x*3),50)*u.high*.045;
+        sheet+=tint*filament;
+        sheet+=ink(1,u.palette)*edge*u.transient*exp(-pow(q.x-.4*sin(t),2)*5)*.38;
+        c=mix(c,c*.35+sheet,mask*.87);
+    }
+    return c*u.intensity;
+}
+#define outrunScene outrunV2
+#define crystalScene crystalV2
+#define galaxyScene galaxyV2
+#define rainScene rainV2
+#define plasmaScene plasmaV2
+#endif
+
 fragment float4 sceneFragment(VertexOut in [[stage_in]], constant Uniforms &input [[buffer(0)]],
     device const float2 *wave [[buffer(1)]], device const float *spectrum [[buffer(2)]],
     texture2d<float> previous [[texture(0)]]) {

@@ -91,3 +91,14 @@ To exercise the actual packaged Metal shaders and export repeatable synthetic pr
 ```
 
 This checks finite pixels, response to isolated bands, palettes and zero intensity, exports landscape and portrait PNGs, and measures bounded offscreen GPU work at windowed, 1080p and 4K sizes. It does not establish capture correctness, display pacing, or musical feel.
+
+## Isolated V2 art-direction preview
+
+The five derived scenes have an opt-in V2 treatment: a curving night route, a solid crystal iris, a dusty star volume, grouped glyph waves and flowing glass ribbons. [V2 direction and comparison notes](docs/V2-DIRECTION.md) contain the collection critique, musical roles and validation limits. The regular build keeps the delivered scenes.
+
+```sh
+scripts/build.sh release --v2-development
+open 'build/Phosphor V2.app'
+```
+
+This development app has its own bundle identity and preferences. Normal launch opens its desk with capture stopped. Use `--stage-v2 --capture-music --diagnostics` for the explicit five-output real-capture launch, `--scene-gallery` for the labeled synthetic gallery, or `--export-motion build/v2-motion` for matched baseline/V2 animated fixtures. Synthetic inputs are never a real-capture fallback. Do not launch a second copy of the V2 app while one is running.

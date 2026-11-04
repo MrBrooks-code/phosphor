@@ -16,44 +16,15 @@ enum SceneValidation {
         return value
     }
     static func run(directory: URL) throws {
-        guard let device = SceneRenderer.device, let queue = device.makeCommandQueue() else { throw RendererError.unavailable }
+        guard let device = SceneRenderer.device else { throw RendererError.unavailable }
         try FileManager.default.createDirectory(at: directory,withIntermediateDirectories: true)
-        let library = try SceneRenderer.shaderLibrary(device: device)
-        func pipeline(_ name: String, _ format: MTLPixelFormat) throws -> MTLRenderPipelineState {
-            let descriptor = MTLRenderPipelineDescriptor()
-            descriptor.vertexFunction = library.makeFunction(name: "fullscreen")
-            descriptor.fragmentFunction = library.makeFunction(name: name)
-            descriptor.colorAttachments[0].pixelFormat = format
-            return try device.makeRenderPipelineState(descriptor: descriptor)
-        }
-        let scenePipeline = try pipeline("sceneFragment",.rgba16Float)
-        let presentPipeline = try pipeline("presentFragment",.rgba8Unorm)
-        let trace = MTLRenderPipelineDescriptor()
-        trace.vertexFunction = library.makeFunction(name: "scopeVertex")
-        trace.fragmentFunction = library.makeFunction(name: "scopeFragment")
-        trace.colorAttachments[0].pixelFormat = .rgba16Float
-        trace.colorAttachments[0].isBlendingEnabled = true
-        trace.colorAttachments[0].sourceRGBBlendFactor = .one
-        trace.colorAttachments[0].destinationRGBBlendFactor = .one
-        let tracePipeline = try device.makeRenderPipelineState(descriptor: trace)
-        let spectrum = device.makeBuffer(length: 64*4,options: .storageModeShared)!
-        let wave = device.makeBuffer(length: 512*8,options: .storageModeShared)!
-        let points = wave.contents().bindMemory(to: SIMD2<Float>.self,capacity: 512)
-        for i in 0..<512 { points[i] = SIMD2(sin(Float(i)*0.05)*0.25,sin(Float(i)*0.07)*0.2) }
+        let fixture = try SceneFixture(device: device,v2: SceneRenderer.isV2)
         var report = "Synthetic native shader checks on \(device.name)\nGPU command duration excludes display pacing.\n"
-        func texture(_ width: Int, _ height: Int, _ format: MTLPixelFormat) throws -> MTLTexture {
-            let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format,width: width,height: height,mipmapped: false)
-            descriptor.usage = [.renderTarget,.shaderRead]
-            descriptor.storageMode = device.supportsFamily(.apple1) ? .shared : .managed
-            guard let texture = device.makeTexture(descriptor: descriptor) else { throw ValidationError.textureUnavailable }
-            return texture
-        }
         for scene in Scene.allCases {
             var quietPixels: [UInt8] = [], combinedPixels: [UInt8] = [], calmPixels: [UInt8] = []
             var combinedRaw: [Float16] = []
             for (width,height) in [(640,360),(1920,1080),(3840,2160),(2160,3840)] {
-                let current = try texture(width,height,.rgba16Float), previous = try texture(width,height,.rgba16Float)
-                let image = try texture(width,height,.rgba8Unorm)
+                try fixture.resize(width: width,height: height)
                 var durations: [Double] = []
                 // Reuse textures and clear feedback for each isolated fixture.
                 for frame in 0..<(width == 640 ? 16 : 12) {
@@ -69,7 +40,6 @@ enum SceneValidation {
                             for band in start..<min(start+21,64) { feature.spectrum[band] = 0.8 }
                         }
                     }
-                    feature.spectrum.withUnsafeBytes { spectrum.contents().copyMemory(from: $0.baseAddress!,byteCount: $0.count) }
                     var u = GPUUniforms(resolution: SIMD2(Float(width),Float(height)),time: 12,dt: 1/60,
                         bass: feature.bass,mid: feature.mid,high: feature.high,transient: feature.transient,
                         rms: feature.rms,intensity: 1,persistence: 0.72,phase: 0.7,scene: scene.shaderID,
@@ -86,43 +56,11 @@ enum SceneValidation {
                         if frame == 14 { u.reactivity = 2 }
                         if frame == 15 { u.intensity = 0.5 }
                     }
-                    let command = queue.makeCommandBuffer()!
-                    let clear = MTLRenderPassDescriptor(); clear.colorAttachments[0].texture = previous
-                    clear.colorAttachments[0].loadAction = .clear; clear.colorAttachments[0].storeAction = .store
-                    command.makeRenderCommandEncoder(descriptor: clear)!.endEncoding()
-                    let pass = MTLRenderPassDescriptor(); pass.colorAttachments[0].texture = current
-                    pass.colorAttachments[0].loadAction = .dontCare; pass.colorAttachments[0].storeAction = .store
-                    let encoder = command.makeRenderCommandEncoder(descriptor: pass)!
-                    encoder.setRenderPipelineState(scenePipeline)
-                    encoder.setFragmentBytes(&u,length: MemoryLayout<GPUUniforms>.stride,index: 0)
-                    encoder.setFragmentBuffer(wave,offset: 0,index: 1); encoder.setFragmentBuffer(spectrum,offset: 0,index: 2)
-                    encoder.setFragmentTexture(previous,index: 0)
-                    encoder.drawPrimitives(type: .triangle,vertexStart: 0,vertexCount: 3)
-                    if scene == .scope && feature.peak > 0 {
-                        encoder.setRenderPipelineState(tracePipeline)
-                        encoder.setVertexBytes(&u,length: MemoryLayout<GPUUniforms>.stride,index: 0)
-                        encoder.setVertexBuffer(wave,offset: 0,index: 1)
-                        encoder.drawPrimitives(type: .triangle,vertexStart: 0,vertexCount: 6,instanceCount: 511)
-                    }
-                    encoder.endEncoding()
-                    pass.colorAttachments[0].texture = image
-                    let final = command.makeRenderCommandEncoder(descriptor: pass)!
-                    final.setRenderPipelineState(presentPipeline); final.setFragmentTexture(current,index: 0)
-                    final.drawPrimitives(type: .triangle,vertexStart: 0,vertexCount: 3); final.endEncoding()
-                    // Make managed GPU writes visible to CPU readback on non-Apple GPUs.
-                    if current.storageMode == .managed && (width == 640 || frame == 1) {
-                        guard let blit = command.makeBlitCommandEncoder() else { throw ValidationError.encoderUnavailable }
-                        blit.synchronize(resource: current); blit.synchronize(resource: image); blit.endEncoding()
-                    }
-                    command.commit(); command.waitUntilCompleted()
-                    if let error = command.error { throw error }
-                    durations.append((command.gpuEndTime-command.gpuStartTime)*1000)
+                    durations.append(try fixture.render(uniforms: u,feature: feature,clearFeedback: true))
                     if width == 640 || frame == 1 {
-                        var raw = [Float16](repeating: 0,count: width*height*4)
-                        current.getBytes(&raw,bytesPerRow: width*8,from: MTLRegionMake2D(0,0,width,height),mipmapLevel: 0)
+                        let raw = fixture.rawPixels()
                         guard raw.allSatisfy({ $0.isFinite && $0 >= 0 }) else { throw ValidationError.invalidPixels(scene) }
-                        var pixels = [UInt8](repeating: 0,count: width*height*4)
-                        image.getBytes(&pixels,bytesPerRow: width*4,from: MTLRegionMake2D(0,0,width,height),mipmapLevel: 0)
+                        let pixels = fixture.pixels()
                         if frame == 0 { quietPixels = pixels }
                         else if width == 640 {
                             if frame == 1 { combinedPixels = pixels; combinedRaw = raw }
@@ -168,4 +106,112 @@ enum SceneValidation {
         print(report)
     }
     enum ValidationError: Error { case noResponse(Scene), invalidPixels(Scene), textureUnavailable, encoderUnavailable }
+}
+
+// Share one offscreen render path between pixel checks and matched motion exports.
+final class SceneFixture {
+    let device: MTLDevice
+    let queue: MTLCommandQueue
+    let scenePipeline: MTLRenderPipelineState
+    let presentPipeline: MTLRenderPipelineState
+    let tracePipeline: MTLRenderPipelineState
+    let spectrum: MTLBuffer
+    let wave: MTLBuffer
+    var current: MTLTexture!
+    var previous: MTLTexture!
+    var image: MTLTexture!
+    init(device: MTLDevice, v2: Bool) throws {
+        self.device = device
+        guard let queue = device.makeCommandQueue() else { throw RendererError.unavailable }
+        self.queue = queue
+        let library = try SceneRenderer.shaderLibrary(device: device,v2: v2)
+        func pipeline(_ name: String, _ format: MTLPixelFormat) throws -> MTLRenderPipelineState {
+            let descriptor = MTLRenderPipelineDescriptor()
+            descriptor.vertexFunction = library.makeFunction(name: "fullscreen")
+            descriptor.fragmentFunction = library.makeFunction(name: name)
+            descriptor.colorAttachments[0].pixelFormat = format
+            return try device.makeRenderPipelineState(descriptor: descriptor)
+        }
+        scenePipeline = try pipeline("sceneFragment",.rgba16Float)
+        presentPipeline = try pipeline("presentFragment",.rgba8Unorm)
+        let trace = MTLRenderPipelineDescriptor()
+        trace.vertexFunction = library.makeFunction(name: "scopeVertex")
+        trace.fragmentFunction = library.makeFunction(name: "scopeFragment")
+        trace.colorAttachments[0].pixelFormat = .rgba16Float
+        trace.colorAttachments[0].isBlendingEnabled = true
+        trace.colorAttachments[0].sourceRGBBlendFactor = .one
+        trace.colorAttachments[0].destinationRGBBlendFactor = .one
+        tracePipeline = try device.makeRenderPipelineState(descriptor: trace)
+        spectrum = device.makeBuffer(length: 64*4,options: .storageModeShared)!
+        wave = device.makeBuffer(length: 512*8,options: .storageModeShared)!
+        let points = wave.contents().bindMemory(to: SIMD2<Float>.self,capacity: 512)
+        for i in 0..<512 { points[i] = SIMD2(sin(Float(i)*0.05)*0.25,sin(Float(i)*0.07)*0.2) }
+    }
+    func resize(width: Int,height: Int) throws {
+        guard current?.width != width || current?.height != height else { return }
+        current = try texture(width,height,.rgba16Float)
+        previous = try texture(width,height,.rgba16Float)
+        image = try texture(width,height,.rgba8Unorm)
+    }
+    private func texture(_ width: Int, _ height: Int, _ format: MTLPixelFormat) throws -> MTLTexture {
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format,width: width,height: height,mipmapped: false)
+        descriptor.usage = [.renderTarget,.shaderRead]
+        descriptor.storageMode = device.supportsFamily(.apple1) ? .shared : .managed
+        guard let texture = device.makeTexture(descriptor: descriptor) else { throw SceneValidation.ValidationError.textureUnavailable }
+        return texture
+    }
+    func render(uniforms: GPUUniforms, feature: AudioFeatures, clearFeedback: Bool) throws -> Double {
+        var u = uniforms
+        feature.spectrum.withUnsafeBytes { spectrum.contents().copyMemory(from: $0.baseAddress!,byteCount: $0.count) }
+        let command = queue.makeCommandBuffer()!
+        if clearFeedback {
+            let clear = MTLRenderPassDescriptor(); clear.colorAttachments[0].texture = previous
+            clear.colorAttachments[0].loadAction = .clear; clear.colorAttachments[0].storeAction = .store
+            command.makeRenderCommandEncoder(descriptor: clear)!.endEncoding()
+        }
+        let pass = MTLRenderPassDescriptor(); pass.colorAttachments[0].texture = current
+        pass.colorAttachments[0].loadAction = .dontCare; pass.colorAttachments[0].storeAction = .store
+        let encoder = command.makeRenderCommandEncoder(descriptor: pass)!
+        encoder.setRenderPipelineState(scenePipeline)
+        encoder.setFragmentBytes(&u,length: MemoryLayout<GPUUniforms>.stride,index: 0)
+        encoder.setFragmentBuffer(wave,offset: 0,index: 1); encoder.setFragmentBuffer(spectrum,offset: 0,index: 2)
+        encoder.setFragmentTexture(previous,index: 0)
+        encoder.drawPrimitives(type: .triangle,vertexStart: 0,vertexCount: 3)
+        if u.scene == 0 && feature.peak > 0 {
+            encoder.setRenderPipelineState(tracePipeline)
+            encoder.setVertexBytes(&u,length: MemoryLayout<GPUUniforms>.stride,index: 0)
+            encoder.setVertexBuffer(wave,offset: 0,index: 1)
+            encoder.drawPrimitives(type: .triangle,vertexStart: 0,vertexCount: 6,instanceCount: 511)
+        }
+        encoder.endEncoding()
+        pass.colorAttachments[0].texture = image
+        let final = command.makeRenderCommandEncoder(descriptor: pass)!
+        final.setRenderPipelineState(presentPipeline); final.setFragmentTexture(current,index: 0)
+        final.drawPrimitives(type: .triangle,vertexStart: 0,vertexCount: 3); final.endEncoding()
+        // Make managed GPU writes visible to CPU readback on non-Apple GPUs.
+        if current.storageMode == .managed {
+            guard let blit = command.makeBlitCommandEncoder() else { throw SceneValidation.ValidationError.encoderUnavailable }
+            blit.synchronize(resource: current); blit.synchronize(resource: image); blit.endEncoding()
+        }
+        command.commit(); command.waitUntilCompleted()
+        if let error = command.error { throw error }
+        swap(&current,&previous)
+        return (command.gpuEndTime-command.gpuStartTime)*1000
+    }
+    func rawPixels() -> [Float16] {
+        var raw = [Float16](repeating: 0,count: image.width*image.height*4)
+        previous.getBytes(&raw,bytesPerRow: image.width*8,from: MTLRegionMake2D(0,0,image.width,image.height),mipmapLevel: 0)
+        return raw
+    }
+    func pixels() -> [UInt8] {
+        var pixels = [UInt8](repeating: 0,count: image.width*image.height*4)
+        image.getBytes(&pixels,bytesPerRow: image.width*4,from: MTLRegionMake2D(0,0,image.width,image.height),mipmapLevel: 0)
+        return pixels
+    }
+    func cgImage() throws -> CGImage {
+        let data = Data(pixels())
+        guard let provider = CGDataProvider(data: data as CFData),
+              let result = CGImage(width: image.width,height: image.height,bitsPerComponent: 8,bitsPerPixel: 32,bytesPerRow: image.width*4,space: CGColorSpaceCreateDeviceRGB(),bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue),provider: provider,decode: nil,shouldInterpolate: false,intent: .defaultIntent) else { throw SceneValidation.ValidationError.textureUnavailable }
+        return result
+    }
 }
